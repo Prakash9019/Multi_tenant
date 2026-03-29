@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .minimal-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .minimal-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .minimal-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c7d0;
+    border-radius: 4px;
+  }
+  .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a5adba;
+  }
+}
