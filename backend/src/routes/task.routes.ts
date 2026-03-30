@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
 import { requireTenant } from '../middleware/tenant.middleware';
 import { requireRoles } from '../middleware/rbac.middleware';
-import { createTask, updateTask, getTasksByBoard } from '../controllers/task.controller';
+import { createTask, updateTask, deleteTask, getTasksByBoard } from '../controllers/task.controller';
 
 const router = Router();
 
@@ -19,5 +19,6 @@ router.post('/', requireRoles(['ORG_ADMIN', 'TENANT_ADMIN', 'MEMBER']), createTa
 
 // PUT requests handle optimistic locking under the hood
 router.put('/:id', requireRoles(['ORG_ADMIN', 'TENANT_ADMIN', 'MEMBER']), updateTask);
+router.delete('/:id', requireRoles(['ORG_ADMIN', 'TENANT_ADMIN']), deleteTask);
 
 export default router;

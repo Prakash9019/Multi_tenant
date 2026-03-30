@@ -1,10 +1,36 @@
 // src/components/Navbar.tsx
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store/store';
+import { setActiveTenant } from '../store/kanbanSlice';
 import { LayoutDashboard, ChevronDown, Bell, Search } from 'lucide-react';
 
 export default function Navbar() {
-  const { activeOrganization, activeTenant } = useSelector((state: RootState) => state.kanban);
+  const dispatch = useDispatch();
+  const { activeOrganization, activeTenant, tenants, presence } = useSelector((state: RootState) => state.kanban);
+
+  const onTenantSwitch = () => {
+    if (!tenants || tenants.length === 0) {
+      return alert('No tenant context loaded yet.');
+    }
+
+    const requestedTenant = prompt(
+      `Choose tenant by name: ${tenants.map((t) => t.name).join(', ')}`
+    );
+
+    if (!requestedTenant) return;
+
+    const selected = tenants.find((t) => t.name.toLowerCase() === requestedTenant.toLowerCase());
+    if (selected) {
+      dispatch(setActiveTenant(selected));
+    } else {
+      alert('Tenant not found');
+    }
+  };
+
+  const onOrgSwitch = () => {
+    if (!activeOrganization) return;
+    alert(`Current organization: ${activeOrganization.name}`);
+  };
 
   return (
     <nav className="h-14 bg-white border-b border-gray-200 flex items-center justify-between px-4 sticky top-0 z-50">
@@ -17,12 +43,18 @@ export default function Navbar() {
 
         {/* Context Switchers */}
         <div className="flex items-center space-x-2 border-l border-gray-200 pl-6">
-          <button className="flex items-center text-sm font-medium text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors">
+          <button
+            onClick={onOrgSwitch}
+            className="flex items-center text-sm font-medium text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors"
+          >
             {activeOrganization?.name || 'Select Org'}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-400" />
           </button>
           <span className="text-gray-300">/</span>
-          <button className="flex items-center text-sm font-medium text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors">
+          <button
+            onClick={onTenantSwitch}
+            className="flex items-center text-sm font-medium text-gray-700 hover:bg-gray-100 px-3 py-1.5 rounded-md transition-colors"
+          >
             {activeTenant?.name || 'Select Tenant'}
             <ChevronDown className="w-4 h-4 ml-1 text-gray-400" />
           </button>
@@ -41,6 +73,7 @@ export default function Navbar() {
         <button className="text-gray-500 hover:text-gray-700">
           <Bell className="w-5 h-5" />
         </button>
+        <div className="text-xs text-gray-500 mr-3">Presence: {presence.length} online</div>
         {/* User Avatar */}
         <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-sm cursor-pointer">
           JD

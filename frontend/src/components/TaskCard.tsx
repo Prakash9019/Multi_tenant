@@ -7,9 +7,10 @@ import { CSS } from '@dnd-kit/utilities';
 
 interface TaskCardProps {
   task: Task;
+  onClick?: (task: Task) => void;
 }
 
-export default function TaskCard({ task }: TaskCardProps) {
+export default function TaskCard({ task, onClick }: TaskCardProps) {
   const {
     setNodeRef,
     attributes,
@@ -43,6 +44,7 @@ export default function TaskCard({ task }: TaskCardProps) {
       style={style}
       {...attributes}
       {...listeners}
+      onClick={() => onClick?.(task)}
       className="group relative bg-white p-3 rounded-lg shadow-sm border border-gray-200 hover:shadow-md hover:border-gray-300 transition-all duration-200 cursor-grab active:cursor-grabbing hover:-translate-y-0.5"
     >
       <div className="text-sm text-gray-800 font-medium leading-snug wrap-break-word">

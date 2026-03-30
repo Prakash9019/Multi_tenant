@@ -1,6 +1,8 @@
 // src/controllers/task.controller.ts
 import { Request, Response } from 'express';
 import prisma from '../config/db';
+import { io } from '../sockets/socketManager';
+import { logActivity } from '../services/activity.service';
 
 export const createTask = async (req: Request, res: Response) => {
   const { title, description, columnId, position } = req.body;
@@ -17,7 +19,18 @@ export const createTask = async (req: Request, res: Response) => {
       },
     });
 
-    // TODO: Emit WebSocket event 'task:create' to 'tenant:{tenantId}' channel
+    if (io) {
+      io.to(`tenant:${tenantId}`).emit('task:created', task);
+    }
+
+    await logActivity({
+      action: 'TASK_CREATED',
+      entityType: 'TASK',
+      entityId: task.id,
+      userId: req.user.id,
+      tenantId,
+    });
+
     res.status(201).json(task);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create task' });
@@ -55,11 +68,49 @@ export const updateTask = async (req: Request, res: Response) => {
     }
 
     const task = await prisma.task.findUnique({ where: { id } });
-    
-    // TODO: Emit WebSocket event 'task:update'
+    if (!task) return res.status(404).json({ error: 'Task not found after update' });
+
+    if (io) {
+      io.to(`tenant:${tenantId}`).emit('task:updated', task);
+    }
+
+    await logActivity({
+      action: 'TASK_UPDATED',
+      entityType: 'TASK',
+      entityId: id,
+      userId: req.user.id,
+      tenantId,
+    });
+
     res.status(200).json(task);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update task' });
+  }
+};
+
+export const deleteTask = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const tenantId = req.tenantId!;
+
+  try {
+    const deleted = await prisma.task.deleteMany({ where: { id, tenantId }});
+    if (deleted.count === 0) return res.status(404).json({ error: 'Task not found' });
+
+    if (io) {
+      io.to(`tenant:${tenantId}`).emit('task:deleted', { id });
+    }
+
+    await logActivity({
+      action: 'TASK_DELETED',
+      entityType: 'TASK',
+      entityId: id,
+      userId: req.user.id,
+      tenantId,
+    });
+
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete task' });
   }
 };
 

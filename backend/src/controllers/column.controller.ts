@@ -1,6 +1,8 @@
 // src/controllers/column.controller.ts
 import { Request, Response } from 'express';
 import prisma from '../config/db';
+import { io } from '../sockets/socketManager';
+import { logActivity } from '../services/activity.service';
 
 export const createColumn = async (req: Request, res: Response) => {
   const { name, boardId, position } = req.body;
@@ -17,7 +19,12 @@ export const createColumn = async (req: Request, res: Response) => {
       data: { name, boardId, position, tenantId },
     });
 
-    // TODO: Emit 'column:create' WebSocket event
+    if (io) {
+      io.to(`tenant:${tenantId}`).emit('column:created', column);
+    }
+
+    await logActivity({ action: 'COLUMN_CREATED', entityType: 'COLUMN', entityId: column.id, userId: req.user.id, tenantId });
+
     res.status(201).json(column);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create column' });
@@ -37,7 +44,13 @@ export const updateColumn = async (req: Request, res: Response) => {
 
     if (column.count === 0) return res.status(404).json({ error: 'Column not found' });
 
-    // TODO: Emit 'column:update' WebSocket event
+    const updatedColumn = await prisma.column.findUnique({ where: { id } });
+    if (io && updatedColumn) {
+      io.to(`tenant:${tenantId}`).emit('column:updated', updatedColumn);
+    }
+
+    await logActivity({ action: 'COLUMN_UPDATED', entityType: 'COLUMN', entityId: id, userId: req.user.id, tenantId });
+
     res.status(200).json({ message: 'Column updated successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update column' });
@@ -55,7 +68,12 @@ export const deleteColumn = async (req: Request, res: Response) => {
 
     if (column.count === 0) return res.status(404).json({ error: 'Column not found' });
 
-    // TODO: Emit 'column:delete' WebSocket event
+    if (io) {
+      io.to(`tenant:${tenantId}`).emit('column:deleted', { id });
+    }
+
+    await logActivity({ action: 'COLUMN_DELETED', entityType: 'COLUMN', entityId: id, userId: req.user.id, tenantId });
+
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete column' });

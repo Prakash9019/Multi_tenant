@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
-import { socketTaskMoved } from '../store/kanbanSlice';
+import { socketTaskMoved, setPresence } from '../store/kanbanSlice';
 
 export const useKanbanSocket = () => {
   const socketRef = useRef<Socket | null>(null);
@@ -36,7 +36,19 @@ export const useKanbanSocket = () => {
 
     socket.on('task:conflict', (data) => {
       alert(`Conflict: ${data.message}`);
-      // Ideally, dispatch a thunk here to re-fetch the board to fix the UI state
+      // Optionally refresh board data from the network to resolve inconsistencies
+    });
+
+    socket.on('presence:update', (users) => {
+      dispatch(setPresence(users));
+    });
+
+    socket.on('task:created', (task) => {
+      dispatch(socketTaskMoved(task));
+    });
+
+    socket.on('task:updated', (task) => {
+      dispatch(socketTaskMoved(task));
     });
 
     socket.on('disconnect', () => {

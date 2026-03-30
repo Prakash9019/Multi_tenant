@@ -39,3 +39,29 @@ export const moveTask = createAsyncThunk(
     }
   }
 );
+
+// Fetch the tenant/organization contexts for the logged-in user
+export const fetchMyTenants = createAsyncThunk(
+  'kanban/fetchMyTenants',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get('/organizations/my-tenants');
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch tenant list');
+    }
+  }
+);
+
+// Fetch activity logs for the active tenant
+export const fetchActivityLogs = createAsyncThunk(
+  'kanban/fetchActivityLogs',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get('/activity');
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to fetch activity logs');
+    }
+  }
+);

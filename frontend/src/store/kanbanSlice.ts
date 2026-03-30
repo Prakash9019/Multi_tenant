@@ -1,23 +1,28 @@
 // src/store/kanbanSlice.ts
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Organization, Tenant, Board, Task } from '../types';
-import { fetchBoards } from './kanbanThunks';
+import { fetchBoards, fetchMyTenants, fetchActivityLogs, moveTask } from './kanbanThunks';
 
 interface KanbanState {
   activeOrganization: Organization | null;
   activeTenant: Tenant | null;
+  tenants: Tenant[];
   boards: Board[];
   currentBoard: Board | null;
+  activityLogs: any[];
+  presence: { id: string; name: string; email?: string }[];
   loading: boolean;
   error: string | null;
 }
 
 const initialState: KanbanState = {
-  // Hardcoded for testing, but in production this comes from Auth/User profile
-  activeOrganization: { id: 'org-1', name: 'Acme Corp' },
-  activeTenant: { id: 'tenant-1', name: 'New York Branch' }, 
+  activeOrganization: null,
+  activeTenant: null,
+  tenants: [],
   boards: [],
   currentBoard: null,
+  activityLogs: [],
+  presence: [],
   loading: false,
   error: null,
 };
@@ -26,9 +31,18 @@ const kanbanSlice = createSlice({
   name: 'kanban',
   initialState,
   reducers: {
+    setActiveOrganization: (state, action: PayloadAction<Organization>) => {
+      state.activeOrganization = action.payload;
+    },
     setActiveTenant: (state, action: PayloadAction<Tenant>) => {
       state.activeTenant = action.payload;
       state.currentBoard = null; // Reset board when tenant changes
+    },
+    setPresence: (state, action: PayloadAction<{ id: string; name: string; email?: string }[]>) => {
+      state.presence = action.payload;
+    },
+    setActivityLogs: (state, action: PayloadAction<any[]>) => {
+      state.activityLogs = action.payload;
     },
     // --- WEBSOCKET REAL-TIME ACTIONS ---
     socketTaskMoved: (state, action: PayloadAction<Task>) => {
@@ -66,9 +80,47 @@ const kanbanSlice = createSlice({
       .addCase(fetchBoards.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
+      })
+      .addCase(moveTask.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(moveTask.fulfilled, (state) => {
+        state.error = null;
+      })
+      .addCase(moveTask.rejected, (state, action) => {
+        state.error = action.payload as string;
+      })
+      .addCase(fetchMyTenants.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMyTenants.fulfilled, (state, action) => {
+        state.loading = false;
+        const memberships = action.payload;
+        state.tenants = memberships.map((m: any) => m.tenant);
+        const org = memberships[0]?.organization;
+        if (org) state.activeOrganization = org;
+        const selectedTenant = memberships[0]?.tenant;
+        if (selectedTenant) state.activeTenant = selectedTenant;
+      })
+      .addCase(fetchMyTenants.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(fetchActivityLogs.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchActivityLogs.fulfilled, (state, action) => {
+        state.loading = false;
+        state.activityLogs = action.payload;
+      })
+      .addCase(fetchActivityLogs.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { setActiveTenant, socketTaskMoved } = kanbanSlice.actions;
+export const { setActiveOrganization, setActiveTenant, setPresence, setActivityLogs, socketTaskMoved } = kanbanSlice.actions;
 export default kanbanSlice.reducer;

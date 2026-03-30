@@ -36,6 +36,32 @@ export const createOrganizationWithTenant = async (req: Request, res: Response) 
   }
 };
 
+export const createTenant = async (req: Request, res: Response) => {
+  const { organizationId, tenantName } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const organization = await prisma.organization.findUnique({ where: { id: organizationId } });
+    if (!organization) return res.status(404).json({ error: 'Organization not found' });
+
+    const tenant = await prisma.tenant.create({ data: { name: tenantName, organizationId } });
+
+    // Auto-role assign the creator as TENANT_ADMIN for this tenant if they're member of org
+    await prisma.membership.create({
+      data: {
+        userId,
+        organizationId,
+        tenantId: tenant.id,
+        role: 'TENANT_ADMIN',
+      },
+    });
+
+    res.status(201).json({ tenant });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create tenant' });
+  }
+};
+
 export const getMyTenants = async (req: Request, res: Response) => {
   const userId = req.user.id;
 
