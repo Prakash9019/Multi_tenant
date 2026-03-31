@@ -88,39 +88,19 @@ export default function Board() {
 
   if (loading) return <div className="flex-1 flex justify-center mt-20"><Loader2 className="animate-spin" /></div>;
 
-  // Tenant context is required before boards can be created/loaded.
+  // ✅ Tenant context is required before boards can be loaded.
+  // ✅ Per industry standard: Users are ASSIGNED to tenants, not creating them freely
   if (!activeTenant) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-10 bg-gray-50 text-center">
         <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">No tenant selected</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">No Tenants Assigned</h2>
           <p className="text-gray-500 mb-6">
-            You need a Tenant or Organization first. Login, then use the tenant switcher or create an organization/tenant.
+            You haven't been assigned to any tenant yet. Contact your organization administrator to invite you to a workspace.
           </p>
           <button
-            onClick={async () => {
-              const orgName = prompt('Enter organization name:');
-              const tenantName = prompt('Enter tenant (branch) name:');
-              if (!orgName || !tenantName) {
-                alert('Organization and Tenant are required.');
-                return;
-              }
-
-              try {
-                await apiClient.post('/organizations', { orgName, tenantName });
-                await dispatch(fetchMyTenants());
-              } catch (error) {
-                console.error('Failed to create organization+tenant', error);
-                alert('Failed to create organization and tenant.');
-              }
-            }}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
-          >
-            Create Organization + Tenant
-          </button>
-          <button
             onClick={() => dispatch(fetchMyTenants())}
-            className="mt-3 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
           >
             Refresh Tenant List
           </button>

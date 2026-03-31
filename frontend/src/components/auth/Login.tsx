@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import type { AppDispatch } from '../../store/store';
+import { fetchMyTenants } from '../../store/kanbanThunks';
 import apiClient from '../../api/client';
 import { LayoutDashboard, Loader2 } from 'lucide-react';
 
@@ -8,16 +11,26 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      // ✅ STEP 1: Authenticate user
       const { data } = await apiClient.post('/auth/login', { email, password });
       localStorage.setItem('jwt_token', data.token);
+      
+      // ✅ STEP 2: Fetch user's assigned memberships (CRITICAL!)
+      // This ensures the user can ONLY see tenants they've been invited to
+      await dispatch(fetchMyTenants()).unwrap();
+      
+      // ✅ STEP 3: Navigate to dashboard with memberships already loaded
+      // The Board component will auto-select the first tenant
       navigate('/');
-    } catch (err) {
-      alert('Login failed. Check your credentials.');
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Login failed. Check your credentials.');
+      localStorage.removeItem('jwt_token');
     } finally {
       setLoading(false);
     }

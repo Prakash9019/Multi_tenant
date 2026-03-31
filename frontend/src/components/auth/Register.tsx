@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import type { AppDispatch } from '../../store/store';
+import { fetchMyTenants } from '../../store/kanbanThunks';
 import apiClient from '../../api/client';
 import { LayoutDashboard, Loader2 } from 'lucide-react';
 
@@ -9,21 +12,31 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Calls the /auth/register endpoint we built in the backend
+      // ✅ STEP 1: Create user account
       const { data } = await apiClient.post('/auth/register', { name, email, password });
-      
-      // Save the JWT token so our API client uses it for future requests
       localStorage.setItem('jwt_token', data.token);
       
-      // Redirect to the main dashboard
+      // ✅ STEP 2: Try to fetch assigned memberships
+      // New users will typically have 0 memberships until an admin invites them
+      try {
+        await dispatch(fetchMyTenants()).unwrap();
+      } catch (err) {
+        console.log('No memberships yet - waiting for admin invitation');
+        // This is expected for new users
+      }
+      
+      // ✅ STEP 3: Navigate to dashboard
+      // User will see "Contact your admin" message until they're invited
       navigate('/');
     } catch (err: any) {
       alert(err.response?.data?.error || 'Registration failed. Please try again.');
+      localStorage.removeItem('jwt_token');
     } finally {
       setLoading(false);
     }
