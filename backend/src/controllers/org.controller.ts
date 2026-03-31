@@ -1,5 +1,6 @@
 // src/controllers/org.controller.ts
 import { Request, Response } from 'express';
+import { Role } from '@prisma/client';
 import prisma from '../config/db';
 
 export const createOrganizationWithTenant = async (req: Request, res: Response) => {
@@ -59,6 +60,49 @@ export const createTenant = async (req: Request, res: Response) => {
     res.status(201).json({ tenant });
   } catch (error) {
     res.status(500).json({ error: 'Failed to create tenant' });
+  }
+};
+
+export const inviteUserToTenant = async (req: Request, res: Response) => {
+  try {
+    const { email, role } = req.body;
+    const tenantId = req.headers['x-tenant-id'] as string;
+
+    // 1. Ensure the user making the request is an ORG_ADMIN or TENANT_ADMIN
+    // (This should be handled by your existing rbac.middleware)
+
+    // 2. Find the tenant to get organizationId
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { organizationId: true },
+    });
+
+    if (!tenant) {
+      return res.status(404).json({ message: "Tenant not found." });
+    }
+
+    // 3. Find the user being invited
+    const userToInvite = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!userToInvite) {
+      return res.status(404).json({ message: "User not found. They must register first." });
+    }
+
+    // 4. Create the Membership
+    const membership = await prisma.membership.create({
+      data: {
+        userId: userToInvite.id,
+        tenantId: tenantId,
+        organizationId: tenant.organizationId,
+        role: (role as Role) || Role.MEMBER,
+      },
+    });
+
+    res.status(201).json({ message: "User invited successfully", membership });
+  } catch (error) {
+    res.status(500).json({ message: "Error inviting user", error });
   }
 };
 

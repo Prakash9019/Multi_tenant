@@ -3,7 +3,7 @@ import  { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../store/store';
 import { fetchBoards, moveTask, fetchMyTenants, fetchActivityLogs } from '../store/kanbanThunks';
-import { socketTaskMoved } from '../store/kanbanSlice';
+import { socketTaskMoved, setActiveTenant } from '../store/kanbanSlice';
 import { useKanbanSocket } from '../hooks/useKanbanSocket';
 import Column from './Column';
 import { Plus, Loader2 } from 'lucide-react';
@@ -12,7 +12,7 @@ import apiClient from '../api/client';
 
 export default function Board() {
   const dispatch = useDispatch<AppDispatch>();
-  const { currentBoard, activeTenant, loading, activityLogs } = useSelector((state: RootState) => state.kanban);
+  const { currentBoard, activeTenant, loading, activityLogs, tenants } = useSelector((state: RootState) => state.kanban);
   const [selectedTask, setSelectedTask] = useState<any>(null);
 
   useKanbanSocket();
@@ -22,6 +22,12 @@ export default function Board() {
       dispatch(fetchMyTenants());
     }
   }, [activeTenant, dispatch]);
+
+  useEffect(() => {
+    if (tenants.length > 0 && !activeTenant) {
+      dispatch(setActiveTenant(tenants[0]));
+    }
+  }, [tenants, activeTenant, dispatch]);
 
   useEffect(() => {
     if (activeTenant) {

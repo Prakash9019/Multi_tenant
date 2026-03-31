@@ -2,12 +2,13 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useDispatch, useSelector } from 'react-redux';
-import type { RootState } from '../store/store';
+import type { RootState, AppDispatch } from '../store/store';
 import { socketTaskMoved, setPresence } from '../store/kanbanSlice';
+import { fetchBoards } from '../store/kanbanThunks';
 
 export const useKanbanSocket = () => {
   const socketRef = useRef<Socket | null>(null);
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const activeTenant = useSelector((state: RootState) => state.kanban.activeTenant);
 
   useEffect(() => {
@@ -35,8 +36,9 @@ export const useKanbanSocket = () => {
     });
 
     socket.on('task:conflict', (data) => {
-      alert(`Conflict: ${data.message}`);
-      // Optionally refresh board data from the network to resolve inconsistencies
+      console.log('Conflict detected:', data.message);
+      // Reload board data to resolve inconsistencies
+      dispatch(fetchBoards());
     });
 
     socket.on('presence:update', (users) => {

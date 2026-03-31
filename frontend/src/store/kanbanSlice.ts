@@ -44,6 +44,17 @@ const kanbanSlice = createSlice({
     setActivityLogs: (state, action: PayloadAction<any[]>) => {
       state.activityLogs = action.payload;
     },
+    clearKanbanState: (state) => {
+      state.activeOrganization = null;
+      state.activeTenant = null;
+      state.tenants = [];
+      state.boards = [];
+      state.currentBoard = null;
+      state.activityLogs = [];
+      state.presence = [];
+      state.loading = false;
+      state.error = null;
+    },
     // --- WEBSOCKET REAL-TIME ACTIONS ---
     socketTaskMoved: (state, action: PayloadAction<Task>) => {
       const updatedTask = action.payload;
@@ -122,5 +133,5 @@ const kanbanSlice = createSlice({
   },
 });
 
-export const { setActiveOrganization, setActiveTenant, setPresence, setActivityLogs, socketTaskMoved } = kanbanSlice.actions;
+export const { setActiveOrganization, setActiveTenant, setPresence, setActivityLogs, socketTaskMoved, clearKanbanState } = kanbanSlice.actions;
 export default kanbanSlice.reducer;
