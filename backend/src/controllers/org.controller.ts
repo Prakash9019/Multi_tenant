@@ -7,6 +7,10 @@ export const createOrganizationWithTenant = async (req: Request, res: Response) 
   const { orgName, tenantName } = req.body;
   const userId = req.user.id;
 
+  if (!orgName || !tenantName) {
+    return res.status(400).json({ error: 'Organization name and tenant name are required' });
+  }
+
   try {
     // Transaction ensures both Org and Tenant are created safely
     const result = await prisma.$transaction(async (tx : any) => {
@@ -18,22 +22,33 @@ export const createOrganizationWithTenant = async (req: Request, res: Response) 
         data: { name: tenantName, organizationId: org.id },
       });
 
-      // Grant the creator ORG_ADMIN rights via Membership
-      await tx.membership.create({
+      // ✅ Grant the creator ORG_ADMIN rights via Membership
+      const membership = await tx.membership.create({
         data: {
           userId,
           organizationId: org.id,
           tenantId: tenant.id,
-          role: 'ORG_ADMIN',
+          role: Role.ORG_ADMIN,
+        },
+        include: {
+          organization: true,
+          tenant: true,
         },
       });
 
-      return { org, tenant };
+      return { org, tenant, membership };
     });
 
-    res.status(201).json(result);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create organization structure' });
+    // ✅ Return all details so frontend has complete context
+    res.status(201).json({
+      message: 'Organization created successfully',
+      organization: result.org,
+      tenant: result.tenant,
+      membership: result.membership,
+    });
+  } catch (error: any) {
+    console.error('Failed to create organization:', error);
+    res.status(500).json({ error: 'Failed to create organization structure', details: error.message });
   }
 };
 

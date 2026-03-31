@@ -5,6 +5,8 @@ import type { RootState, AppDispatch } from '../store/store';
 import { fetchBoards, moveTask, fetchMyTenants, fetchActivityLogs } from '../store/kanbanThunks';
 import { socketTaskMoved, setActiveTenant } from '../store/kanbanSlice';
 import { useKanbanSocket } from '../hooks/useKanbanSocket';
+import EmptyDashboard from './EmptyDashboard';
+import TenantSelector from './TenantSelector';
 import Column from './Column';
 import { Plus, Loader2 } from 'lucide-react';
 import { DndContext,type DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -88,25 +90,20 @@ export default function Board() {
 
   if (loading) return <div className="flex-1 flex justify-center mt-20"><Loader2 className="animate-spin" /></div>;
 
-  // ✅ Tenant context is required before boards can be loaded.
-  // ✅ Per industry standard: Users are ASSIGNED to tenants, not creating them freely
-  if (!activeTenant) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-10 bg-gray-50 text-center">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-sm">
-          <h2 className="text-xl font-bold text-gray-800 mb-2">No Tenants Assigned</h2>
-          <p className="text-gray-500 mb-6">
-            You haven't been assigned to any tenant yet. Contact your organization administrator to invite you to a workspace.
-          </p>
-          <button
-            onClick={() => dispatch(fetchMyTenants())}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors"
-          >
-            Refresh Tenant List
-          </button>
-        </div>
-      </div>
-    );
+  // ✅ Path 1: User with 0 tenants (show EmptyDashboard with 2 paths)
+  if (tenants.length === 0) {
+    return <EmptyDashboard />;
+  }
+
+  // ✅ Path 2: User with multiple tenants but hasn't selected one (show TenantSelector)
+  if (tenants.length > 1 && !activeTenant) {
+    return <TenantSelector />;
+  }
+
+  // ✅ Path 3: Auto-select first tenant if single tenant and not yet selected
+  // This happens automatically in the useEffect below, so we show loading briefly
+  if (tenants.length === 1 && !activeTenant) {
+    return <div className="flex-1 flex justify-center mt-20"><Loader2 className="animate-spin" /></div>;
   }
 
   if (!currentBoard) {

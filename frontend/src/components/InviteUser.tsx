@@ -21,20 +21,26 @@ export default function InviteUser({ isOpen, onClose }: InviteUserProps) {
     e.preventDefault();
     if (!email.trim()) return;
 
+    if (!activeTenant) {
+      setError('No tenant selected. Please select a workspace first.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      await apiClient.post('/org/invite', {
+      // ✅ Correct endpoint: /organizations/invite (not /org/invite)
+      // ✅ x-tenant-id header is automatically added by apiClient interceptor
+      await apiClient.post('/organizations/invite', {
         email: email.trim(),
         role,
-        tenantId: activeTenant?.id,
       });
       alert('Invitation sent successfully!');
       setEmail('');
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send invitation');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to send invitation');
     } finally {
       setLoading(false);
     }

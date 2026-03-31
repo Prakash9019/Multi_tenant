@@ -27,6 +27,9 @@ export const useKanbanSocket = () => {
 
     socket.on('connect', () => {
       console.log('🟢 Connected to real-time sync for tenant:', activeTenant.name);
+      // ✅ Fetch fresh board data on every connection/reconnect
+      // This ensures we didn't miss any events while offline
+      dispatch(fetchBoards());
     });
 
     // Listen for events emitted from the backend `taskHandlers.ts`
