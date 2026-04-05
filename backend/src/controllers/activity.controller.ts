@@ -1,9 +1,30 @@
 // src/controllers/activity.controller.ts
 import { Request, Response } from 'express';
 import prisma from '../config/db';
-import { logActivity } from '../services/activity.service';
 import { io } from '../sockets/socketManager';
 import { getErrorMessage, logError } from '../utils/runtime';
+
+interface TaskSnapshot {
+  title: string;
+  description?: string | null;
+  columnId: string;
+  position: number;
+  version: number;
+}
+
+const isTaskSnapshot = (value: unknown): value is TaskSnapshot => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  return (
+    typeof candidate.title === 'string' &&
+    typeof candidate.columnId === 'string' &&
+    typeof candidate.position === 'number' &&
+    typeof candidate.version === 'number'
+  );
+};
 
 export const getActivityLogs = async (req: Request, res: Response) => {
   const tenantId = req.tenantId!;
@@ -41,102 +62,161 @@ export const undoLastAction = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'No actions to undo' });
     }
 
-    // Check if the entity still exists and hasn't been modified by others
-    let canUndo = false;
-    let undoResult;
-
-    const data = lastAction.data as any; // Cast JSON data for type safety
+    let undoResult: { action: string; entityId: string } | null = null;
+    const data = lastAction.data as Record<string, unknown> | null;
 
     switch (lastAction.action) {
-      case 'TASK_CREATED':
+      case 'TASK_CREATED': {
         // Undo create = delete the task
-        const taskExists = await prisma.task.findFirst({
+        const deletedTask = await prisma.task.deleteMany({
           where: { id: lastAction.entityId, tenantId },
         });
-        if (taskExists) {
-          await prisma.task.delete({ where: { id: lastAction.entityId } });
-          if (io) {
-            io.to(`tenant:${tenantId}`).emit('task:deleted', { id: lastAction.entityId });
-          }
-          canUndo = true;
-          undoResult = { action: 'TASK_DELETED', entityId: lastAction.entityId };
-        }
-        break;
 
-      case 'TASK_DELETED':
+        if (deletedTask.count === 0) {
+          return res.status(409).json({
+            error: 'Cannot undo this action because the task no longer exists in this tenant',
+          });
+        }
+
+        if (io) {
+          io.to(`tenant:${tenantId}`).emit('task:deleted', { id: lastAction.entityId });
+        }
+
+        undoResult = { action: 'TASK_DELETED', entityId: lastAction.entityId };
+        break;
+      }
+
+      case 'TASK_DELETED': {
         // Undo delete = recreate the task
-        if (data?.task) {
-          const recreatedTask = await prisma.task.create({
-            data: {
-              id: lastAction.entityId, // Restore with same ID
-              title: data.task.title,
-              description: data.task.description,
-              columnId: data.task.columnId,
-              position: data.task.position,
-              version: data.task.version,
-              tenantId,
-            },
-          });
-          if (io) {
-            io.to(`tenant:${tenantId}`).emit('task:created', recreatedTask);
-          }
-          canUndo = true;
-          undoResult = { action: 'TASK_CREATED', entityId: lastAction.entityId };
-        }
-        break;
+        const taskData = data?.task;
 
-      case 'TASK_UPDATED':
-        // Undo update = revert to previous state
-        if (data?.previous) {
-          const currentTask = await prisma.task.findFirst({
+        if (!isTaskSnapshot(taskData)) {
+          return res.status(409).json({
+            error: 'Cannot undo this action because the original task snapshot is incomplete',
+          });
+        }
+
+        const [existingTask, existingColumn] = await Promise.all([
+          prisma.task.findFirst({
             where: { id: lastAction.entityId, tenantId },
+            select: { id: true },
+          }),
+          prisma.column.findFirst({
+            where: { id: taskData.columnId, tenantId },
+            select: { id: true },
+          }),
+        ]);
+
+        if (existingTask) {
+          return res.status(409).json({
+            error: 'Cannot undo this action because the task has already been restored',
           });
-          if (currentTask && currentTask.version === data.new.version) {
-            // Only undo if no one else modified it
-            const revertedTask = await prisma.task.update({
-              where: { id: lastAction.entityId },
-              data: {
-                title: data.previous.title,
-                description: data.previous.description,
-                columnId: data.previous.columnId,
-                position: data.previous.position,
-                version: { increment: 1 },
-              },
-            });
-            if (io) {
-              io.to(`tenant:${tenantId}`).emit('task:updated', revertedTask);
-            }
-            canUndo = true;
-            undoResult = { action: 'TASK_UPDATED', entityId: lastAction.entityId };
-          }
         }
+
+        if (!existingColumn) {
+          return res.status(409).json({
+            error: 'Cannot undo this action because the original column no longer exists',
+          });
+        }
+
+        const recreatedTask = await prisma.task.create({
+          data: {
+            id: lastAction.entityId,
+            title: taskData.title,
+            description: taskData.description,
+            columnId: taskData.columnId,
+            position: taskData.position,
+            version: taskData.version,
+            tenantId,
+          },
+        });
+
+        if (io) {
+          io.to(`tenant:${tenantId}`).emit('task:created', recreatedTask);
+        }
+
+        undoResult = { action: 'TASK_CREATED', entityId: lastAction.entityId };
         break;
+      }
+
+      case 'TASK_UPDATED': {
+        // Undo update = revert to previous state
+        const previousTask = data?.previous;
+        const nextTask = data?.new;
+
+        if (!isTaskSnapshot(previousTask) || !isTaskSnapshot(nextTask)) {
+          return res.status(409).json({
+            error: 'Cannot undo this action because the task history is incomplete',
+          });
+        }
+
+        const reverted = await prisma.task.updateMany({
+          where: {
+            id: lastAction.entityId,
+            tenantId,
+            version: nextTask.version,
+          },
+          data: {
+            title: previousTask.title,
+            description: previousTask.description,
+            columnId: previousTask.columnId,
+            position: previousTask.position,
+            version: { increment: 1 },
+          },
+        });
+
+        if (reverted.count === 0) {
+          return res.status(409).json({
+            error: 'Cannot undo this action because the task was changed again',
+          });
+        }
+
+        const revertedTask = await prisma.task.findFirst({
+          where: { id: lastAction.entityId, tenantId },
+        });
+
+        if (!revertedTask) {
+          return res.status(404).json({ error: 'Task not found after undo' });
+        }
+
+        if (io) {
+          io.to(`tenant:${tenantId}`).emit('task:updated', revertedTask);
+        }
+
+        undoResult = { action: 'TASK_UPDATED', entityId: lastAction.entityId };
+        break;
+      }
+
+      default:
+        return res.status(409).json({ error: 'This action type cannot be undone' });
     }
 
-    if (canUndo) {
-      // Log the undo action
-      await logActivity({
-        action: `UNDO_${lastAction.action}`,
-        entityType: lastAction.entityType as 'TASK' | 'BOARD' | 'COLUMN',
-        entityId: lastAction.entityId,
-        userId,
-        tenantId,
-        data: { originalAction: lastAction },
-      });
-
-      // Delete the original action log so it can't be undone again
-      await prisma.activityLog.delete({ where: { id: lastAction.id } });
-
-      res.status(200).json({
-        message: 'Action undone successfully',
-        undoneAction: lastAction.action,
-        result: undoResult,
-      });
-    } else {
-      res.status(409).json({
-        error: 'Cannot undo this action - the item may have been modified by another user'
+    if (!undoResult) {
+      return res.status(409).json({
+        error: 'Cannot undo this action - the item may have been modified by another user',
       });
     }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.activityLog.create({
+        data: {
+          action: `UNDO_${lastAction.action}`,
+          entityType: lastAction.entityType,
+          entityId: lastAction.entityId,
+          userId,
+          tenantId,
+          data: { originalAction: lastAction },
+        },
+      });
+
+      await tx.activityLog.delete({ where: { id: lastAction.id } });
+    });
+
+    res.status(200).json({
+      message: 'Action undone successfully',
+      undoneAction: lastAction.action,
+      result: undoResult,
+    });
   } catch (error) {
     logError('activity.undoLastAction', error);
     res.status(500).json({ error: 'Failed to undo action', details: getErrorMessage(error) });

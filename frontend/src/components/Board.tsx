@@ -74,7 +74,12 @@ export default function Board() {
     const newPosition = targetColumn ? targetColumn.tasks.length + 1 : 1;
 
     // Optimistic UI update (local immediate state) before backend confirms
-    const optimisticTask = { ...activeTask, columnId: targetColumnId, position: newPosition };
+    const optimisticTask = {
+      ...activeTask,
+      columnId: targetColumnId,
+      position: newPosition,
+      version: activeTask.version + 1,
+    };
     dispatch(socketTaskMoved(optimisticTask));
 
     dispatch(moveTask({

@@ -3,6 +3,12 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../api/client';
 import type { Board } from '../types';
 
+const getApiErrorMessage = (error: any, fallback: string) =>
+  error.response?.data?.error ||
+  error.response?.data?.message ||
+  error.response?.data?.details ||
+  fallback;
+
 // Fetch boards for the currently active tenant
 export const fetchBoards = createAsyncThunk(
   'kanban/fetchBoards',
@@ -12,7 +18,7 @@ export const fetchBoards = createAsyncThunk(
       // For this UI, we assume we auto-load the first board if it exists
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to fetch boards');
+      return rejectWithValue(getApiErrorMessage(error, 'Failed to fetch boards'));
     }
   }
 );
@@ -33,9 +39,9 @@ export const moveTask = createAsyncThunk(
       return response.data;
     } catch (error: any) {
       if (error.response?.status === 409) {
-        return rejectWithValue('Conflict: Task was modified by another user.');
+        return rejectWithValue(getApiErrorMessage(error, 'Conflict: Task was modified by another user.'));
       }
-      return rejectWithValue('Failed to move task');
+      return rejectWithValue(getApiErrorMessage(error, 'Failed to move task'));
     }
   }
 );
@@ -48,7 +54,7 @@ export const fetchMyTenants = createAsyncThunk(
       const response = await apiClient.get('/organizations/my-tenants');
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to fetch tenant list');
+      return rejectWithValue(getApiErrorMessage(error, 'Failed to fetch tenant list'));
     }
   }
 );
@@ -61,7 +67,7 @@ export const fetchActivityLogs = createAsyncThunk(
       const response = await apiClient.get('/activity');
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to fetch activity logs');
+      return rejectWithValue(getApiErrorMessage(error, 'Failed to fetch activity logs'));
     }
   }
 );
@@ -74,7 +80,7 @@ export const undoLastAction = createAsyncThunk(
       const response = await apiClient.post('/activity/undo');
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.error || 'Failed to undo action');
+      return rejectWithValue(getApiErrorMessage(error, 'Failed to undo action'));
     }
   }
 );

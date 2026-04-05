@@ -7,7 +7,7 @@ if (!configuredApiUrl && import.meta.env.PROD) {
       'Set VITE_API_URL in Vercel when frontend and backend are deployed separately.'
   );
 }
-
+// localhost : 8000
 export const API_BASE_URL = configuredApiUrl || fallbackApiUrl ;
 
 export const SOCKET_SERVER_URL = (() => {

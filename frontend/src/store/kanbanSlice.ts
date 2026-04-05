@@ -27,6 +27,19 @@ const initialState: KanbanState = {
   error: null,
 };
 
+const applyTaskToCurrentBoard = (state: KanbanState, updatedTask: Task) => {
+  if (!state.currentBoard) return;
+
+  state.currentBoard.columns.forEach((col) => {
+    col.tasks = col.tasks.filter((t) => t.id !== updatedTask.id);
+
+    if (col.id === updatedTask.columnId) {
+      col.tasks.push(updatedTask);
+      col.tasks.sort((a, b) => a.position - b.position);
+    }
+  });
+};
+
 const kanbanSlice = createSlice({
   name: 'kanban',
   initialState,
@@ -57,19 +70,7 @@ const kanbanSlice = createSlice({
     },
     // --- WEBSOCKET REAL-TIME ACTIONS ---
     socketTaskMoved: (state, action: PayloadAction<Task>) => {
-      const updatedTask = action.payload;
-      if (!state.currentBoard) return;
-      
-      // Remove task from old column and add to new column (or update position in same column)
-      state.currentBoard.columns.forEach(col => {
-        // Remove old instance
-        col.tasks = col.tasks.filter(t => t.id !== updatedTask.id);
-        // Add to new column
-        if (col.id === updatedTask.columnId) {
-          col.tasks.push(updatedTask);
-          col.tasks.sort((a, b) => a.position - b.position);
-        }
-      });
+      applyTaskToCurrentBoard(state, action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -95,8 +96,9 @@ const kanbanSlice = createSlice({
       .addCase(moveTask.pending, (state) => {
         state.error = null;
       })
-      .addCase(moveTask.fulfilled, (state) => {
+      .addCase(moveTask.fulfilled, (state, action) => {
         state.error = null;
+        applyTaskToCurrentBoard(state, action.payload);
       })
       .addCase(moveTask.rejected, (state, action) => {
         state.error = action.payload as string;
