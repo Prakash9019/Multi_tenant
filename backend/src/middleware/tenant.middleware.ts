@@ -1,6 +1,7 @@
 // src/middleware/tenant.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../config/db'; // Your Prisma client instance
+import { logError } from '../utils/runtime';
 
 export const requireTenant = async (req: Request, res: Response, next: NextFunction) => {
   // Expecting clients to pass the active tenant ID in headers
@@ -32,6 +33,7 @@ export const requireTenant = async (req: Request, res: Response, next: NextFunct
     
     next();
   } catch (error) {
+    logError('tenant.middleware', error);
     return res.status(500).json({ error: 'Internal server error verifying tenancy' });
   }
 };

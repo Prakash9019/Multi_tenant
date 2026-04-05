@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import { registerTaskHandlers } from './taskHandlers';
 import { registerPresenceHandlers } from './presenceHandlers';
+import { logError } from '../utils/runtime';
 
 export let io: Server;
 
@@ -36,8 +37,13 @@ export const initializeSockets = (httpServer: HttpServer) => {
         return next(new Error('Authentication and tenantId are required'));
       }
 
+      const jwtSecret = process.env.JWT_SECRET?.trim();
+      if (!jwtSecret) {
+        return next(new Error('Socket authentication is not configured'));
+      }
+
       // 1. Verify JWT
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as any;
+      const decoded = jwt.verify(token, jwtSecret) as any;
 
       // 2. Verify Membership to enforce cross-tenant data leakage prevention
       const membership = await prisma.membership.findUnique({
@@ -59,6 +65,7 @@ export const initializeSockets = (httpServer: HttpServer) => {
       
       next();
     } catch (error) {
+      logError('socket.authenticate', error);
       next(new Error('Socket authentication failed'));
     }
   });

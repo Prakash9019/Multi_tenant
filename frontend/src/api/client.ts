@@ -1,10 +1,10 @@
 // src/api/client.ts
 import axios from 'axios';
 import { store } from '../store/store';
+import { API_BASE_URL } from '../config/api';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://multi-tenant-tey5.vercel.app/api/v1",
-  // 'http://localhost:8080/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },

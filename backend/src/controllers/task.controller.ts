@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { io } from '../sockets/socketManager';
 import { logActivity } from '../services/activity.service';
+import { getErrorMessage, logError } from '../utils/runtime';
 
 export const createTask = async (req: Request, res: Response) => {
   const { title, description, columnId, position } = req.body;
@@ -42,7 +43,8 @@ export const createTask = async (req: Request, res: Response) => {
 
     res.status(201).json(task);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create task' });
+    logError('task.createTask', error);
+    res.status(500).json({ error: 'Failed to create task', details: getErrorMessage(error) });
   }
 };
 
@@ -53,7 +55,7 @@ export const updateTask = async (req: Request, res: Response) => {
 
   try {
     // Get the current task state before update for undo logging
-    const currentTask = await prisma.task.findUnique({
+    const currentTask = await prisma.task.findFirst({
       where: { id, tenantId },
     });
 
@@ -119,7 +121,8 @@ export const updateTask = async (req: Request, res: Response) => {
 
     res.status(200).json(task);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update task' });
+    logError('task.updateTask', error);
+    res.status(500).json({ error: 'Failed to update task', details: getErrorMessage(error) });
   }
 };
 
@@ -129,7 +132,7 @@ export const deleteTask = async (req: Request, res: Response) => {
 
   try {
     // Get task data before deletion for undo
-    const task = await prisma.task.findUnique({ where: { id, tenantId } });
+    const task = await prisma.task.findFirst({ where: { id, tenantId } });
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
     const deleted = await prisma.task.deleteMany({ where: { id, tenantId }});
@@ -159,7 +162,8 @@ export const deleteTask = async (req: Request, res: Response) => {
 
     res.status(204).send();
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete task' });
+    logError('task.deleteTask', error);
+    res.status(500).json({ error: 'Failed to delete task', details: getErrorMessage(error) });
   }
 };
 
@@ -180,6 +184,7 @@ export const getTasksByBoard = async (req: Request, res: Response) => {
     
     res.status(200).json(tasks);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch tasks' });
+    logError('task.getTasksByBoard', error);
+    res.status(500).json({ error: 'Failed to fetch tasks', details: getErrorMessage(error) });
   }
 };

@@ -2,6 +2,7 @@
 import { Request, Response } from 'express';
 import { Role } from '@prisma/client';
 import prisma from '../config/db';
+import { getErrorMessage, logError } from '../utils/runtime';
 
 export const createOrganizationWithTenant = async (req: Request, res: Response) => {
   const { orgName, tenantName } = req.body;
@@ -47,8 +48,8 @@ export const createOrganizationWithTenant = async (req: Request, res: Response) 
       membership: result.membership,
     });
   } catch (error: any) {
-    console.error('Failed to create organization:', error);
-    res.status(500).json({ error: 'Failed to create organization structure', details: error.message });
+    logError('org.createOrganizationWithTenant', error);
+    res.status(500).json({ error: 'Failed to create organization structure', details: getErrorMessage(error) });
   }
 };
 
@@ -74,7 +75,8 @@ export const createTenant = async (req: Request, res: Response) => {
 
     res.status(201).json({ tenant });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create tenant' });
+    logError('org.createTenant', error);
+    res.status(500).json({ error: 'Failed to create tenant', details: getErrorMessage(error) });
   }
 };
 
@@ -117,7 +119,8 @@ export const inviteUserToTenant = async (req: Request, res: Response) => {
 
     res.status(201).json({ message: "User invited successfully", membership });
   } catch (error) {
-    res.status(500).json({ message: "Error inviting user", error });
+    logError('org.inviteUserToTenant', error);
+    res.status(500).json({ message: 'Error inviting user', details: getErrorMessage(error) });
   }
 };
 
@@ -136,6 +139,7 @@ export const getMyTenants = async (req: Request, res: Response) => {
 
     res.status(200).json(memberships);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch tenants' });
+    logError('org.getMyTenants', error);
+    res.status(500).json({ error: 'Failed to fetch tenants', details: getErrorMessage(error) });
   }
 };

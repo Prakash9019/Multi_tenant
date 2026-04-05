@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { io } from '../sockets/socketManager';
 import { logActivity } from '../services/activity.service';
+import { getErrorMessage, logError } from '../utils/runtime';
 
 export const createBoard = async (req: Request, res: Response) => {
   const { name } = req.body;
@@ -21,7 +22,8 @@ export const createBoard = async (req: Request, res: Response) => {
 
     res.status(201).json(board);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create board' });
+    logError('board.createBoard', error);
+    res.status(500).json({ error: 'Failed to create board', details: getErrorMessage(error) });
   }
 };
 
@@ -42,7 +44,8 @@ export const getBoards = async (req: Request, res: Response) => {
     });
     res.status(200).json(boards);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch boards' });
+    logError('board.getBoards', error);
+    res.status(500).json({ error: 'Failed to fetch boards', details: getErrorMessage(error) });
   }
 };
 
@@ -69,7 +72,8 @@ export const getBoardById = async (req: Request, res: Response) => {
 
     res.status(200).json(board);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch board' });
+    logError('board.getBoardById', error);
+    res.status(500).json({ error: 'Failed to fetch board', details: getErrorMessage(error) });
   }
 };
 
@@ -95,7 +99,8 @@ export const updateBoard = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: 'Board updated successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update board' });
+    logError('board.updateBoard', error);
+    res.status(500).json({ error: 'Failed to update board', details: getErrorMessage(error) });
   }
 };
 
@@ -118,6 +123,7 @@ export const deleteBoard = async (req: Request, res: Response) => {
 
     res.status(204).send();
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete board' });
+    logError('board.deleteBoard', error);
+    res.status(500).json({ error: 'Failed to delete board', details: getErrorMessage(error) });
   }
 };

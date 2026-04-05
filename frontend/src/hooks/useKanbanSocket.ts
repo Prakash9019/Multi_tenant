@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../store/store';
 import { socketTaskMoved, setPresence } from '../store/kanbanSlice';
 import { fetchBoards } from '../store/kanbanThunks';
+import { SOCKET_SERVER_URL } from '../config/api';
 
 export const useKanbanSocket = () => {
   const socketRef = useRef<Socket | null>(null);
@@ -27,7 +28,7 @@ export const useKanbanSocket = () => {
 
     const connectSocket = () => {
       // Initialize Socket Connection
-      socketRef.current = io(import.meta.env.VITE_API_URL || 'http://localhost:8080', {
+      socketRef.current = io(SOCKET_SERVER_URL, {
         auth: { token },
         query: { tenantId: activeTenant.id },
         transports: ['websocket', 'polling'], // Fallback to polling if websocket fails

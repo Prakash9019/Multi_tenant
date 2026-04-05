@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { io } from '../sockets/socketManager';
 import { logActivity } from '../services/activity.service';
+import { getErrorMessage, logError } from '../utils/runtime';
 
 export const createColumn = async (req: Request, res: Response) => {
   const { name, boardId, position } = req.body;
@@ -27,7 +28,8 @@ export const createColumn = async (req: Request, res: Response) => {
 
     res.status(201).json(column);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to create column' });
+    logError('column.createColumn', error);
+    res.status(500).json({ error: 'Failed to create column', details: getErrorMessage(error) });
   }
 };
 
@@ -53,7 +55,8 @@ export const updateColumn = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: 'Column updated successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to update column' });
+    logError('column.updateColumn', error);
+    res.status(500).json({ error: 'Failed to update column', details: getErrorMessage(error) });
   }
 };
 
@@ -76,6 +79,7 @@ export const deleteColumn = async (req: Request, res: Response) => {
 
     res.status(204).send();
   } catch (error) {
-    res.status(500).json({ error: 'Failed to delete column' });
+    logError('column.deleteColumn', error);
+    res.status(500).json({ error: 'Failed to delete column', details: getErrorMessage(error) });
   }
 };

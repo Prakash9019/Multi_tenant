@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { logActivity } from '../services/activity.service';
 import { io } from '../sockets/socketManager';
+import { getErrorMessage, logError } from '../utils/runtime';
 
 export const getActivityLogs = async (req: Request, res: Response) => {
   const tenantId = req.tenantId!;
@@ -16,7 +17,8 @@ export const getActivityLogs = async (req: Request, res: Response) => {
 
     res.status(200).json(logs);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch activity logs' });
+    logError('activity.getActivityLogs', error);
+    res.status(500).json({ error: 'Failed to fetch activity logs', details: getErrorMessage(error) });
   }
 };
 
@@ -48,7 +50,7 @@ export const undoLastAction = async (req: Request, res: Response) => {
     switch (lastAction.action) {
       case 'TASK_CREATED':
         // Undo create = delete the task
-        const taskExists = await prisma.task.findUnique({
+        const taskExists = await prisma.task.findFirst({
           where: { id: lastAction.entityId, tenantId },
         });
         if (taskExists) {
@@ -86,7 +88,7 @@ export const undoLastAction = async (req: Request, res: Response) => {
       case 'TASK_UPDATED':
         // Undo update = revert to previous state
         if (data?.previous) {
-          const currentTask = await prisma.task.findUnique({
+          const currentTask = await prisma.task.findFirst({
             where: { id: lastAction.entityId, tenantId },
           });
           if (currentTask && currentTask.version === data.new.version) {
@@ -136,7 +138,7 @@ export const undoLastAction = async (req: Request, res: Response) => {
       });
     }
   } catch (error) {
-    console.error('Undo error:', error);
-    res.status(500).json({ error: 'Failed to undo action' });
+    logError('activity.undoLastAction', error);
+    res.status(500).json({ error: 'Failed to undo action', details: getErrorMessage(error) });
   }
 };
