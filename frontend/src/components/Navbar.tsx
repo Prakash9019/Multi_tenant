@@ -6,7 +6,7 @@ import type { RootState } from '../store/store';
 import { setActiveTenant, clearKanbanState } from '../store/kanbanSlice';
 import { LayoutDashboard, ChevronDown, Bell, Search, LogOut, UserPlus } from 'lucide-react';
 import InviteUser from './InviteUser';
-
+import { User } from "lucide-react";
 export default function Navbar() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -102,9 +102,10 @@ export default function Navbar() {
           <LogOut className="w-5 h-5" />
         </button>
         {/* User Avatar */}
-        <div className="w-8 h-8 rounded-full bg-linear-to-tr from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold shadow-sm cursor-pointer">
-          JD
-        </div>
+
+<div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 flex items-center justify-center shadow-md cursor-pointer">
+  <User className="w-4 h-4 text-white" />
+</div>
       </div>
       <InviteUser isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} />
     </nav>

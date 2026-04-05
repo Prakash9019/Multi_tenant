@@ -50,8 +50,8 @@ export default function EmptyDashboard() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8">
+  <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl bg-white p-6 sm:p-8 md:p-10 rounded-2xl shadow-xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
