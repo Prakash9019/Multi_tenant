@@ -2,7 +2,7 @@
 import  { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '../store/store';
-import { fetchBoards, moveTask, fetchMyTenants, fetchActivityLogs } from '../store/kanbanThunks';
+import { fetchBoards, moveTask, fetchMyTenants, fetchActivityLogs, undoLastAction } from '../store/kanbanThunks';
 import { socketTaskMoved, setActiveTenant } from '../store/kanbanSlice';
 import { useKanbanSocket } from '../hooks/useKanbanSocket';
 import EmptyDashboard from './EmptyDashboard';
@@ -137,7 +137,24 @@ export default function Board() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-800">{currentBoard.name}</h1>
-          <div className="text-sm text-gray-500">Recent Activity: {activityLogs?.length ?? 0}</div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={async () => {
+                try {
+                  await dispatch(undoLastAction()).unwrap();
+                  // Refresh board after undo
+                  dispatch(fetchBoards());
+                } catch (error: any) {
+                  alert(error || 'Failed to undo last action');
+                }
+              }}
+              className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-md transition-colors"
+              title="Undo last action"
+            >
+              ↶ Undo
+            </button>
+            <div className="text-sm text-gray-500">Recent Activity: {activityLogs?.length ?? 0}</div>
+          </div>
         </div>
 
         <div className="flex-1 overflow-x-auto px-6 pb-6 pt-2 flex space-x-4">

@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.middleware';
 import { requireTenant } from '../middleware/tenant.middleware';
-import { getActivityLogs } from '../controllers/activity.controller';
+import { getActivityLogs, undoLastAction } from '../controllers/activity.controller';
 
 const router = Router();
 
@@ -10,5 +10,6 @@ router.use(requireAuth);
 router.use(requireTenant);
 
 router.get('/', getActivityLogs);
+router.post('/undo', undoLastAction);
 
 export default router;

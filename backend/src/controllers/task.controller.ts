@@ -29,6 +29,15 @@ export const createTask = async (req: Request, res: Response) => {
       entityId: task.id,
       userId: req.user.id,
       tenantId,
+      data: {
+        task: {
+          title: task.title,
+          description: task.description,
+          columnId: task.columnId,
+          position: task.position,
+          version: task.version,
+        }
+      }
     });
 
     res.status(201).json(task);
@@ -43,6 +52,15 @@ export const updateTask = async (req: Request, res: Response) => {
   const tenantId = req.tenantId!;
 
   try {
+    // Get the current task state before update for undo logging
+    const currentTask = await prisma.task.findUnique({
+      where: { id, tenantId },
+    });
+
+    if (!currentTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
     // Optimistic Locking: We only update if the version matches what the client sent
     const updatedTask = await prisma.task.updateMany({
       where: {
@@ -74,12 +92,29 @@ export const updateTask = async (req: Request, res: Response) => {
       io.to(`tenant:${tenantId}`).emit('task:updated', task);
     }
 
+    // Log activity with previous state for undo
     await logActivity({
       action: 'TASK_UPDATED',
       entityType: 'TASK',
       entityId: id,
       userId: req.user.id,
       tenantId,
+      data: {
+        previous: {
+          title: currentTask.title,
+          description: currentTask.description,
+          columnId: currentTask.columnId,
+          position: currentTask.position,
+          version: currentTask.version,
+        },
+        new: {
+          title: task.title,
+          description: task.description,
+          columnId: task.columnId,
+          position: task.position,
+          version: task.version,
+        }
+      }
     });
 
     res.status(200).json(task);
@@ -93,6 +128,10 @@ export const deleteTask = async (req: Request, res: Response) => {
   const tenantId = req.tenantId!;
 
   try {
+    // Get task data before deletion for undo
+    const task = await prisma.task.findUnique({ where: { id, tenantId } });
+    if (!task) return res.status(404).json({ error: 'Task not found' });
+
     const deleted = await prisma.task.deleteMany({ where: { id, tenantId }});
     if (deleted.count === 0) return res.status(404).json({ error: 'Task not found' });
 
@@ -100,12 +139,22 @@ export const deleteTask = async (req: Request, res: Response) => {
       io.to(`tenant:${tenantId}`).emit('task:deleted', { id });
     }
 
+    // Log activity with task data for undo
     await logActivity({
       action: 'TASK_DELETED',
       entityType: 'TASK',
       entityId: id,
       userId: req.user.id,
       tenantId,
+      data: {
+        task: {
+          title: task.title,
+          description: task.description,
+          columnId: task.columnId,
+          position: task.position,
+          version: task.version,
+        }
+      }
     });
 
     res.status(204).send();

@@ -113,11 +113,13 @@ model ActivityLog {
   entityId   String
   userId     String
   tenantId   String
+  data       Json?    // Store previous state or data needed for undo
   createdAt  DateTime @default(now())
   tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([userId])
 }
 
 enum Role {

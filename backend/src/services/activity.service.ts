@@ -7,6 +7,7 @@ interface LogActivityParams {
   entityId: string;
   userId: string;
   tenantId: string;
+  data?: any; // Optional data for undo operations
 }
 
 export const logActivity = async (params: LogActivityParams) => {
@@ -18,6 +19,7 @@ export const logActivity = async (params: LogActivityParams) => {
         entityId: params.entityId,
         userId: params.userId,
         tenantId: params.tenantId,
+        data: params.data,
       },
     });
   } catch (error) {

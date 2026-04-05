@@ -65,3 +65,16 @@ export const fetchActivityLogs = createAsyncThunk(
     }
   }
 );
+
+// Undo the last action by the current user
+export const undoLastAction = createAsyncThunk(
+  'kanban/undoLastAction',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post('/activity/undo');
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.error || 'Failed to undo action');
+    }
+  }
+);

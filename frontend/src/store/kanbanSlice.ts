@@ -1,7 +1,7 @@
 // src/store/kanbanSlice.ts
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { Organization, Tenant, Board, Task } from '../types';
-import { fetchBoards, fetchMyTenants, fetchActivityLogs, moveTask } from './kanbanThunks';
+import { fetchBoards, fetchMyTenants, fetchActivityLogs, moveTask, undoLastAction } from './kanbanThunks';
 
 interface KanbanState {
   activeOrganization: Organization | null;
@@ -128,6 +128,16 @@ const kanbanSlice = createSlice({
       })
       .addCase(fetchActivityLogs.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(undoLastAction.pending, (state) => {
+        state.error = null;
+      })
+      .addCase(undoLastAction.fulfilled, (_state) => {
+        // After undo, the board will be updated via socket events
+        // No need to modify state here as real-time updates handle it
+      })
+      .addCase(undoLastAction.rejected, (state, action) => {
         state.error = action.payload as string;
       });
   },
