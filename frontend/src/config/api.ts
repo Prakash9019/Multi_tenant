@@ -1,5 +1,5 @@
-const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const fallbackApiUrl = import.meta.env.DEV ? 'https://multi-tenant-tey5.vercel.app/api/v1' : '/api/v1';
+const configuredApiUrl = "https://multi-tenant-gbpo.onrender.com/api/v1";
+const fallbackApiUrl = import.meta.env.DEV ? 'https://multi-tenant-gbpo.onrender.com/api/v1' : '/api/v1';
 
 if (!configuredApiUrl && import.meta.env.PROD) {
   console.error(
@@ -8,7 +8,7 @@ if (!configuredApiUrl && import.meta.env.PROD) {
   );
 }
 
-export const API_BASE_URL = configuredApiUrl || fallbackApiUrl;
+export const API_BASE_URL = configuredApiUrl || fallbackApiUrl ;
 
 export const SOCKET_SERVER_URL = (() => {
   const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
