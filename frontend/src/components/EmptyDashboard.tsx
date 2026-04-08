@@ -1,38 +1,45 @@
-// src/components/EmptyDashboard.tsx
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from '../store/store';
 import { fetchMyTenants } from '../store/kanbanThunks';
 import apiClient from '../api/client';
 import { LayoutDashboard, Loader2, RefreshCw, Building2 } from 'lucide-react';
+import { useToast } from './ui/ToastProvider';
+import { getApiErrorMessage } from '../utils/api';
 
 export default function EmptyDashboard() {
   const dispatch = useDispatch<AppDispatch>();
   const { tenants } = useSelector((state: RootState) => state.kanban);
+  const { showToast } = useToast();
   const [orgName, setOrgName] = useState('');
   const [tenantName, setTenantName] = useState('');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
-  // If they already have tenants, this component shouldn't render
   if (tenants.length > 0) return null;
 
   const handleCreateOrg = async () => {
     if (!orgName.trim() || !tenantName.trim()) {
-      alert('Please fill in both organization and branch names');
+      setError('Please fill in both organization and branch names.');
       return;
     }
 
     setLoading(true);
+    setError('');
+
     try {
-      // Calls the POST / endpoint (protected with ORG_ADMIN check, but creator becomes ORG_ADMIN)
       await apiClient.post('/organizations', { orgName, tenantName });
-      // Refresh their memberships—they are now an ORG_ADMIN!
       await dispatch(fetchMyTenants()).unwrap();
       setOrgName('');
       setTenantName('');
+      showToast({
+        title: 'Workspace created',
+        description: 'Your organization and first branch are ready.',
+        tone: 'success',
+      });
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Error creating organization');
+      setError(getApiErrorMessage(err, 'Error creating organization'));
     } finally {
       setLoading(false);
     }
@@ -42,104 +49,102 @@ export default function EmptyDashboard() {
     setRefreshing(true);
     try {
       await dispatch(fetchMyTenants()).unwrap();
-    } catch (err) {
-      console.error('Failed to refresh memberships');
+    } catch {
+      showToast({
+        title: 'Unable to refresh',
+        description: 'We could not check invitations right now.',
+        tone: 'error',
+      });
     } finally {
       setRefreshing(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4 sm:px-6 lg:px-8">
-  <div className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl bg-white p-6 sm:p-8 md:p-10 rounded-2xl shadow-xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <LayoutDashboard className="w-12 h-12 text-blue-600" />
+    <div className="flex min-h-full w-full items-center justify-center px-4 py-10 sm:px-6 lg:px-8">
+      <div className="w-full max-w-xl rounded-[32px] border border-blue-100 bg-white p-6 shadow-xl shadow-blue-100/60 sm:p-8 md:p-10">
+        <div className="mb-8 text-center">
+          <div className="mb-4 flex justify-center">
+            <LayoutDashboard className="h-12 w-12 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Welcome to TaskFlow!</h2>
-          <p className="text-gray-600">You don't belong to any workspaces yet.</p>
+          <h2 className="mb-2 text-3xl font-semibold text-blue-950">Welcome to TaskFlow</h2>
+          <p className="text-blue-700/70">You don&apos;t belong to any workspaces yet.</p>
         </div>
 
-        {/* Path 1: The Joiner (Person X) - Waiting for invitation */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg mb-6 border border-blue-200">
-          <h3 className="font-bold text-blue-900 mb-2">👥 Waiting for an invite?</h3>
-          <p className="text-sm text-blue-800 mb-4">
+        <div className="mb-6 rounded-3xl border border-blue-200 bg-blue-50 p-5">
+          <h3 className="mb-2 font-semibold text-blue-900">Waiting for an invite?</h3>
+          <p className="mb-4 text-sm text-blue-800">
             Ask your administrator to invite your email address to their workspace.
           </p>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {refreshing ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Refreshing...
               </>
             ) : (
               <>
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="h-4 w-4" />
                 Check for Invites
               </>
             )}
           </button>
         </div>
 
-        {/* Divider */}
-        <div className="relative flex py-4 items-center mb-6">
-          <div className="flex-grow border-t border-gray-300"></div>
-          <span className="flex-shrink-0 mx-4 text-gray-400 text-sm font-medium">OR</span>
-          <div className="flex-grow border-t border-gray-300"></div>
+        <div className="relative mb-6 flex items-center py-4">
+          <div className="flex-grow border-t border-blue-100"></div>
+          <span className="mx-4 flex-shrink-0 text-sm font-medium text-blue-400">OR</span>
+          <div className="flex-grow border-t border-blue-100"></div>
         </div>
 
-        {/* Path 2: The Creator - Create new organization */}
         <div className="mt-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Building2 className="w-5 h-5 text-green-600" />
-            <h3 className="font-bold text-gray-900">Create a New Workspace</h3>
+          <div className="mb-4 flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600" />
+            <h3 className="font-semibold text-blue-950">Create a New Workspace</h3>
           </div>
 
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Organization Name
-              </label>
+              <label className="mb-1 block text-sm font-medium text-blue-900">Organization Name</label>
               <input
                 type="text"
-                placeholder="e.g. Acme Corp, TechStartup"
-                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                placeholder="e.g. Acme Corp"
+                className="w-full rounded-2xl border border-blue-200 p-3 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                 value={orgName}
-                onChange={(e) => setOrgName(e.target.value)}
+                onChange={(event) => setOrgName(event.target.value)}
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Branch/Location Name
-              </label>
+              <label className="mb-1 block text-sm font-medium text-blue-900">Branch / Location Name</label>
               <input
                 type="text"
                 placeholder="e.g. Bangalore, HQ, New York"
-                className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                className="w-full rounded-2xl border border-blue-200 p-3 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
                 value={tenantName}
-                onChange={(e) => setTenantName(e.target.value)}
+                onChange={(event) => setTenantName(event.target.value)}
               />
             </div>
+
+            {error ? <p className="text-sm text-blue-700">{error}</p> : null}
 
             <button
               onClick={handleCreateOrg}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                   Creating...
                 </>
               ) : (
                 <>
-                  <Building2 className="w-5 h-5" />
+                  <Building2 className="h-5 w-5" />
                   Create Organization
                 </>
               )}
@@ -147,9 +152,8 @@ export default function EmptyDashboard() {
           </div>
         </div>
 
-        {/* Info text */}
-        <p className="text-xs text-gray-500 text-center mt-6">
-          As the creator, you'll be an admin and can invite teammates to your workspace.
+        <p className="mt-6 text-center text-xs text-blue-700/60">
+          As the creator, you&apos;ll become an admin and can invite teammates to your workspace.
         </p>
       </div>
     </div>

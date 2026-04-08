@@ -1,11 +1,12 @@
 // src/store/kanbanSlice.ts
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { Organization, Tenant, Board, Task } from '../types';
+import type { Organization, Tenant, Board, Task, Membership } from '../types';
 import { fetchBoards, fetchMyTenants, fetchActivityLogs, moveTask, undoLastAction } from './kanbanThunks';
 
 interface KanbanState {
   activeOrganization: Organization | null;
   activeTenant: Tenant | null;
+  memberships: Membership[];
   tenants: Tenant[];
   boards: Board[];
   currentBoard: Board | null;
@@ -13,11 +14,13 @@ interface KanbanState {
   presence: { id: string; name: string; email?: string }[];
   loading: boolean;
   error: string | null;
+  searchQuery: string;
 }
 
 const initialState: KanbanState = {
   activeOrganization: null,
   activeTenant: null,
+  memberships: [],
   tenants: [],
   boards: [],
   currentBoard: null,
@@ -25,6 +28,7 @@ const initialState: KanbanState = {
   presence: [],
   loading: false,
   error: null,
+  searchQuery: '',
 };
 
 const applyTaskToCurrentBoard = (state: KanbanState, updatedTask: Task) => {
@@ -49,7 +53,17 @@ const kanbanSlice = createSlice({
     },
     setActiveTenant: (state, action: PayloadAction<Tenant>) => {
       state.activeTenant = action.payload;
+      state.activeOrganization =
+        state.memberships.find((membership) => membership.tenant.id === action.payload.id)?.organization ||
+        state.activeOrganization;
       state.currentBoard = null; // Reset board when tenant changes
+      state.searchQuery = '';
+    },
+    setCurrentBoard: (state, action: PayloadAction<string>) => {
+      state.currentBoard = state.boards.find((board) => board.id === action.payload) || null;
+    },
+    setSearchQuery: (state, action: PayloadAction<string>) => {
+      state.searchQuery = action.payload;
     },
     setPresence: (state, action: PayloadAction<{ id: string; name: string; email?: string }[]>) => {
       state.presence = action.payload;
@@ -60,6 +74,7 @@ const kanbanSlice = createSlice({
     clearKanbanState: (state) => {
       state.activeOrganization = null;
       state.activeTenant = null;
+      state.memberships = [];
       state.tenants = [];
       state.boards = [];
       state.currentBoard = null;
@@ -67,6 +82,7 @@ const kanbanSlice = createSlice({
       state.presence = [];
       state.loading = false;
       state.error = null;
+      state.searchQuery = '';
     },
     // --- WEBSOCKET REAL-TIME ACTIONS ---
     socketTaskMoved: (state, action: PayloadAction<Task>) => {
@@ -82,8 +98,11 @@ const kanbanSlice = createSlice({
       .addCase(fetchBoards.fulfilled, (state, action) => {
         state.loading = false;
         state.boards = action.payload;
-        // Auto-select the first board
-        if (action.payload.length > 0) {
+        const currentBoardId = state.currentBoard?.id;
+        const matchingBoard = action.payload.find((board) => board.id === currentBoardId);
+        if (matchingBoard) {
+          state.currentBoard = matchingBoard;
+        } else if (action.payload.length > 0) {
           state.currentBoard = action.payload[0];
         } else {
           state.currentBoard = null;
@@ -109,12 +128,14 @@ const kanbanSlice = createSlice({
       })
       .addCase(fetchMyTenants.fulfilled, (state, action) => {
         state.loading = false;
-        const memberships = action.payload;
-        state.tenants = memberships.map((m: any) => m.tenant);
-        const org = memberships[0]?.organization;
-        if (org) state.activeOrganization = org;
-        const selectedTenant = memberships[0]?.tenant;
-        if (selectedTenant) state.activeTenant = selectedTenant;
+        const memberships = action.payload as Membership[];
+        state.memberships = memberships;
+        state.tenants = memberships.map((membership) => membership.tenant);
+        const selectedMembership =
+          memberships.find((membership) => membership.tenant.id === state.activeTenant?.id) ||
+          memberships[0];
+        state.activeOrganization = selectedMembership?.organization || null;
+        state.activeTenant = selectedMembership?.tenant || null;
       })
       .addCase(fetchMyTenants.rejected, (state, action) => {
         state.loading = false;
@@ -145,5 +166,14 @@ const kanbanSlice = createSlice({
   },
 });
 
-export const { setActiveOrganization, setActiveTenant, setPresence, setActivityLogs, socketTaskMoved, clearKanbanState } = kanbanSlice.actions;
+export const {
+  setActiveOrganization,
+  setActiveTenant,
+  setCurrentBoard,
+  setSearchQuery,
+  setPresence,
+  setActivityLogs,
+  socketTaskMoved,
+  clearKanbanState,
+} = kanbanSlice.actions;
 export default kanbanSlice.reducer;

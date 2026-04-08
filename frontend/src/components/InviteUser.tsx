@@ -1,9 +1,10 @@
-// src/components/InviteUser.tsx
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store/store';
 import apiClient from '../api/client';
-import { X, UserPlus } from 'lucide-react';
+import Modal from './ui/Modal';
+import { useToast } from './ui/ToastProvider';
+import { getApiErrorMessage } from '../utils/api';
 
 interface InviteUserProps {
   isOpen: boolean;
@@ -12,111 +13,110 @@ interface InviteUserProps {
 
 export default function InviteUser({ isOpen, onClose }: InviteUserProps) {
   const { activeTenant } = useSelector((state: RootState) => state.kanban);
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('MEMBER');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
+  const resetForm = () => {
+    setEmail('');
+    setRole('MEMBER');
+    setError('');
+  };
+
+  const handleClose = () => {
+    if (loading) return;
+    resetForm();
+    onClose();
+  };
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
     if (!activeTenant) {
-      setError('No tenant selected. Please select a workspace first.');
+      setError('Select a branch before inviting users.');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    if (!email.trim()) {
+      setError('Email is required.');
+      return;
+    }
 
     try {
-      // ✅ Correct endpoint: /organizations/invite (not /org/invite)
-      // ✅ x-tenant-id header is automatically added by apiClient interceptor
+      setLoading(true);
+      setError('');
       await apiClient.post('/organizations/invite', {
         email: email.trim(),
         role,
       });
-      alert('Invitation sent successfully!');
-      setEmail('');
+      showToast({
+        title: 'Invitation sent',
+        description: `${email.trim()} can now join ${activeTenant.name}.`,
+        tone: 'success',
+      });
+      resetForm();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to send invitation');
+      setError(getApiErrorMessage(err, 'Failed to send invitation'));
     } finally {
       setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold flex items-center">
-            <UserPlus className="w-5 h-5 mr-2" />
-            Invite User
-          </h2>
+    <Modal
+      open={isOpen}
+      title="Invite User"
+      description="Invite a teammate to the current branch."
+      onClose={handleClose}
+      footer={
+        <div className="flex items-center justify-end gap-3">
           <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            type="button"
+            onClick={handleClose}
+            className="rounded-2xl border border-blue-100 px-4 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
           >
-            <X className="w-5 h-5" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form="invite-user-form"
+            disabled={loading}
+            className="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? 'Sending...' : 'Send Invitation'}
           </button>
         </div>
+      }
+    >
+      <form id="invite-user-form" onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-blue-900">Email address</label>
+          <input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="w-full rounded-2xl border border-blue-200 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+            placeholder="user@example.com"
+          />
+        </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="user@example.com"
-              required
-            />
-          </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-blue-900">Access level</label>
+          <select
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            className="w-full rounded-2xl border border-blue-200 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+          >
+            <option value="MEMBER">Member</option>
+            <option value="TENANT_ADMIN">Admin</option>
+          </select>
+        </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="MEMBER">Member</option>
-              <option value="TENANT_ADMIN">Tenant Admin</option>
-            </select>
-          </div>
-
-          {error && (
-            <div className="mb-4 text-red-600 text-sm">
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Sending...' : 'Send Invitation'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        {error ? <p className="text-sm text-blue-700">{error}</p> : null}
+      </form>
+    </Modal>
   );
 }

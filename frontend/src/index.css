@@ -1,5 +1,49 @@
 @import "tailwindcss";
 
+:root {
+  color: #0f172a;
+  background: #eef4ff;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top left, rgba(59, 130, 246, 0.16), transparent 28%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+  color: #0f172a;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @layer utilities {
   .minimal-scrollbar::-webkit-scrollbar {
     width: 8px;
@@ -9,10 +53,10 @@
     background: transparent;
   }
   .minimal-scrollbar::-webkit-scrollbar-thumb {
-    background: #c1c7d0;
+    background: #93c5fd;
     border-radius: 4px;
   }
   .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a5adba;
+    background: #60a5fa;
   }
 }

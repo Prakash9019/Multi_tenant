@@ -4,7 +4,7 @@ import Navbar from './Navbar';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-[#f4f5f7] min-h-screen flex flex-col font-sans">
+    <div className="min-h-screen bg-transparent flex flex-col font-sans">
       <Navbar />
       <main className="flex-1 flex overflow-hidden">
         {children}
