@@ -7,6 +7,7 @@ interface KanbanState {
   activeOrganization: Organization | null;
   activeTenant: Tenant | null;
   memberships: Membership[];
+  hasFetchedTenants: boolean;
   tenants: Tenant[];
   boards: Board[];
   currentBoard: Board | null;
@@ -21,6 +22,7 @@ const initialState: KanbanState = {
   activeOrganization: null,
   activeTenant: null,
   memberships: [],
+  hasFetchedTenants: false,
   tenants: [],
   boards: [],
   currentBoard: null,
@@ -75,6 +77,7 @@ const kanbanSlice = createSlice({
       state.activeOrganization = null;
       state.activeTenant = null;
       state.memberships = [];
+      state.hasFetchedTenants = false;
       state.tenants = [];
       state.boards = [];
       state.currentBoard = null;
@@ -128,6 +131,7 @@ const kanbanSlice = createSlice({
       })
       .addCase(fetchMyTenants.fulfilled, (state, action) => {
         state.loading = false;
+        state.hasFetchedTenants = true;
         const memberships = action.payload as Membership[];
         state.memberships = memberships;
         state.tenants = memberships.map((membership) => membership.tenant);
@@ -139,6 +143,7 @@ const kanbanSlice = createSlice({
       })
       .addCase(fetchMyTenants.rejected, (state, action) => {
         state.loading = false;
+        state.hasFetchedTenants = true;
         state.error = action.payload as string;
       })
       .addCase(fetchActivityLogs.pending, (state) => {

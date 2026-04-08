@@ -1,6 +1,13 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import { clearStoredToken, hasValidStoredToken } from '../../utils/auth';
 
 export default function ProtectedRoute() {
-  const token = localStorage.getItem('jwt_token');
-  return token ? <Outlet /> : <Navigate to="/login" />;
+  const isAuthenticated = hasValidStoredToken();
+
+  if (!isAuthenticated) {
+    clearStoredToken();
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
 }

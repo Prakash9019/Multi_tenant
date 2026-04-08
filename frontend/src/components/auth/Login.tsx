@@ -7,6 +7,7 @@ import apiClient from '../../api/client';
 import { LayoutDashboard, Loader2 } from 'lucide-react';
 import { useToast } from '../ui/ToastProvider';
 import { getApiErrorMessage } from '../../utils/api';
+import { clearStoredToken, setStoredToken } from '../../utils/auth';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -24,7 +25,7 @@ export default function Login() {
 
     try {
       const { data } = await apiClient.post('/auth/login', { email, password });
-      localStorage.setItem('jwt_token', data.token);
+      setStoredToken(data.token);
       await dispatch(fetchMyTenants()).unwrap();
       showToast({
         title: 'Welcome back',
@@ -35,7 +36,7 @@ export default function Login() {
     } catch (err: any) {
       const message = getApiErrorMessage(err, 'Login failed. Check your credentials.');
       setError(message);
-      localStorage.removeItem('jwt_token');
+      clearStoredToken();
     } finally {
       setLoading(false);
     }

@@ -6,6 +6,7 @@ import type { RootState, AppDispatch } from '../store/store';
 import { socketTaskMoved, setPresence } from '../store/kanbanSlice';
 import { fetchBoards } from '../store/kanbanThunks';
 import { SOCKET_SERVER_URL } from '../config/api';
+import { getStoredToken } from '../utils/auth';
 
 export const useKanbanSocket = () => {
   const socketRef = useRef<Socket | null>(null);
@@ -15,7 +16,7 @@ export const useKanbanSocket = () => {
   const maxReconnectAttempts = 5;
 
   useEffect(() => {
-    const token = localStorage.getItem('jwt_token');
+    const token = getStoredToken();
 
     // Only connect if we have a token and an active tenant
     if (!token || !activeTenant?.id) {

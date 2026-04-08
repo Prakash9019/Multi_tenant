@@ -7,6 +7,7 @@ import { useToast } from '../ui/ToastProvider';
 import { getApiErrorMessage } from '../../utils/api';
 import type { AppDispatch } from '../../store/store';
 import { fetchMyTenants } from '../../store/kanbanThunks';
+import { clearStoredToken, setStoredToken } from '../../utils/auth';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -43,7 +44,7 @@ export default function Register() {
       });
 
       if (data?.token) {
-        localStorage.setItem('jwt_token', data.token);
+        setStoredToken(data.token);
       }
 
       await dispatch(fetchMyTenants()).unwrap();
@@ -57,7 +58,7 @@ export default function Register() {
       navigate('/');
     } catch (requestError) {
       setError(getApiErrorMessage(requestError, 'Registration failed. Please try again.'));
-      localStorage.removeItem('jwt_token');
+      clearStoredToken();
     } finally {
       setLoading(false);
     }

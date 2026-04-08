@@ -68,13 +68,17 @@ export default function EmptyDashboard() {
             <LayoutDashboard className="h-12 w-12 text-blue-600" />
           </div>
           <h2 className="mb-2 text-3xl font-semibold text-blue-950">Welcome to TaskFlow</h2>
-          <p className="text-blue-700/70">You don&apos;t belong to any workspaces yet.</p>
+          <p className="text-blue-700/70">You don&apos;t have any memberships yet.</p>
+          <p className="mt-2 text-sm text-blue-700/70">
+            Create a new organization to become its admin, or wait for an invite to an existing branch.
+          </p>
         </div>
 
         <div className="mb-6 rounded-3xl border border-blue-200 bg-blue-50 p-5">
           <h3 className="mb-2 font-semibold text-blue-900">Waiting for an invite?</h3>
           <p className="mb-4 text-sm text-blue-800">
-            Ask your administrator to invite your email address to their workspace.
+            Ask an admin to invite the same email address you used to register. As soon as a membership is added,
+            you&apos;ll be able to access that branch and its boards.
           </p>
           <button
             onClick={handleRefresh}
@@ -101,10 +105,10 @@ export default function EmptyDashboard() {
           <div className="flex-grow border-t border-blue-100"></div>
         </div>
 
-        <div className="mt-6">
+      <div className="mt-6">
           <div className="mb-4 flex items-center gap-2">
             <Building2 className="h-5 w-5 text-blue-600" />
-            <h3 className="font-semibold text-blue-950">Create a New Workspace</h3>
+            <h3 className="font-semibold text-blue-950">Create a New Organization</h3>
           </div>
 
           <div className="space-y-3">
@@ -152,8 +156,8 @@ export default function EmptyDashboard() {
           </div>
         </div>
 
-        <p className="mt-6 text-center text-xs text-blue-700/60">
-          As the creator, you&apos;ll become an admin and can invite teammates to your workspace.
+      <p className="mt-6 text-center text-xs text-blue-700/60">
+          When you create the organization and first branch, you automatically become the admin for that workspace.
         </p>
       </div>
     </div>

@@ -11,16 +11,15 @@ import Avatar from './ui/Avatar';
 import { useToast } from './ui/ToastProvider';
 import apiClient from '../api/client';
 import { getApiErrorMessage } from '../utils/api';
-import { getUserFromToken } from '../utils/auth';
+import { clearStoredToken, getUserFromToken } from '../utils/auth';
 import { isAdminRole, isOrgAdminRole } from '../utils/roles';
 
 export default function Navbar() {
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { activeOrganization, activeTenant, tenants, memberships, presence, searchQuery } = useSelector(
-    (state: RootState) => state.kanban
-  );
+  const { activeOrganization, activeTenant, tenants, memberships, hasFetchedTenants, presence, searchQuery } =
+    useSelector((state: RootState) => state.kanban);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showCreateTenantModal, setShowCreateTenantModal] = useState(false);
   const [tenantName, setTenantName] = useState('');
@@ -32,11 +31,11 @@ export default function Navbar() {
   const canInviteUsers = isAdminRole(currentRole);
   const canCreateBranch = isOrgAdminRole(currentRole);
   const currentUser = getUserFromToken();
+  const hasWorkspace = tenants.length > 0 && Boolean(activeTenant);
 
   const handleLogout = () => {
     dispatch(clearKanbanState());
-    localStorage.removeItem('jwt_token');
-    localStorage.removeItem('token');
+    clearStoredToken();
     navigate('/login');
   };
 
@@ -89,50 +88,66 @@ export default function Navbar() {
             <div className="min-w-0">
               <p className="text-sm font-semibold tracking-wide text-blue-950">TaskFlow</p>
               <p className="truncate text-xs text-blue-700/70">
-                {activeOrganization?.name || 'Workspace board'}
+                {activeOrganization?.name || (hasFetchedTenants ? 'No workspace yet' : 'Workspace board')}
               </p>
             </div>
           </div>
 
-          <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
-            <div className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => dispatch(setSearchQuery(event.target.value))}
-                placeholder="Search cards by title or description"
-                className="w-full rounded-2xl border border-blue-100 bg-blue-50/70 py-2.5 pl-10 pr-4 text-sm text-blue-950 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
+          {hasWorkspace ? (
+            <div className="hidden min-w-0 flex-1 items-center gap-3 lg:flex">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => dispatch(setSearchQuery(event.target.value))}
+                  placeholder="Search cards by title or description"
+                  className="w-full rounded-2xl border border-blue-100 bg-blue-50/70 py-2.5 pl-10 pr-4 text-sm text-blue-950 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="relative min-w-0 flex-1">
+              <div className="hidden rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-2.5 text-sm text-blue-700/80 lg:block">
+                Create a new organization or wait for an invite to access a board.
+              </div>
+            </div>
+          )}
 
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
-            <div className="hidden items-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 sm:flex">
-              <span className="text-xs font-medium uppercase tracking-wide text-blue-500">Branch</span>
-              <select
-                value={activeTenant?.id || ''}
-                onChange={(event) => {
-                  const selected = tenants.find((tenant) => tenant.id === event.target.value);
-                  if (selected) {
-                    dispatch(setActiveTenant(selected));
-                  }
-                }}
-                className="bg-transparent text-sm font-medium text-blue-950 outline-none"
-              >
-                {tenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {hasWorkspace ? (
+              <div className="hidden items-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 sm:flex">
+                <span className="text-xs font-medium uppercase tracking-wide text-blue-500">Branch</span>
+                <select
+                  value={activeTenant?.id || ''}
+                  onChange={(event) => {
+                    const selected = tenants.find((tenant) => tenant.id === event.target.value);
+                    if (selected) {
+                      dispatch(setActiveTenant(selected));
+                    }
+                  }}
+                  className="bg-transparent text-sm font-medium text-blue-950 outline-none"
+                >
+                  {tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
-            <div className="hidden rounded-2xl border border-blue-100 bg-white px-3 py-2 text-xs font-medium text-blue-700 sm:block">
-              {presence.length} online
-            </div>
+            {hasWorkspace ? (
+              <div className="hidden rounded-2xl border border-blue-100 bg-white px-3 py-2 text-xs font-medium text-blue-700 sm:block">
+                {presence.length} online
+              </div>
+            ) : hasFetchedTenants ? (
+              <div className="hidden rounded-2xl border border-blue-100 bg-white px-3 py-2 text-xs font-medium text-blue-700 sm:block">
+                No memberships yet
+              </div>
+            ) : null}
 
-            {canCreateBranch ? (
+            {hasWorkspace && canCreateBranch ? (
               <button
                 type="button"
                 onClick={() => setShowCreateTenantModal(true)}
@@ -144,7 +159,7 @@ export default function Navbar() {
               </button>
             ) : null}
 
-            {canInviteUsers ? (
+            {hasWorkspace && canInviteUsers ? (
               <button
                 type="button"
                 onClick={() => setShowInviteModal(true)}
@@ -170,44 +185,46 @@ export default function Navbar() {
           </div>
         </div>
 
-        <div className="border-t border-blue-50 px-4 py-3 lg:hidden">
-          <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => dispatch(setSearchQuery(event.target.value))}
-                placeholder="Search cards by title or description"
-                className="w-full rounded-2xl border border-blue-100 bg-blue-50/70 py-2.5 pl-10 pr-4 text-sm text-blue-950 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
-                <span className="mr-2 text-xs uppercase tracking-wide text-blue-500">Branch</span>
-                <select
-                  value={activeTenant?.id || ''}
-                  onChange={(event) => {
-                    const selected = tenants.find((tenant) => tenant.id === event.target.value);
-                    if (selected) {
-                      dispatch(setActiveTenant(selected));
-                    }
-                  }}
-                  className="bg-transparent font-medium outline-none"
-                >
-                  {tenants.map((tenant) => (
-                    <option key={tenant.id} value={tenant.id}>
-                      {tenant.name}
-                    </option>
-                  ))}
-                </select>
+        {hasWorkspace ? (
+          <div className="border-t border-blue-50 px-4 py-3 lg:hidden">
+            <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-blue-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(event) => dispatch(setSearchQuery(event.target.value))}
+                  placeholder="Search cards by title or description"
+                  className="w-full rounded-2xl border border-blue-100 bg-blue-50/70 py-2.5 pl-10 pr-4 text-sm text-blue-950 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-100"
+                />
               </div>
-              <div className="rounded-2xl border border-blue-100 bg-white px-3 py-2 text-xs font-medium text-blue-700">
-                {presence.length} online
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-2 text-sm text-blue-900">
+                  <span className="mr-2 text-xs uppercase tracking-wide text-blue-500">Branch</span>
+                  <select
+                    value={activeTenant?.id || ''}
+                    onChange={(event) => {
+                      const selected = tenants.find((tenant) => tenant.id === event.target.value);
+                      if (selected) {
+                        dispatch(setActiveTenant(selected));
+                      }
+                    }}
+                    className="bg-transparent font-medium outline-none"
+                  >
+                    {tenants.map((tenant) => (
+                      <option key={tenant.id} value={tenant.id}>
+                        {tenant.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="rounded-2xl border border-blue-100 bg-white px-3 py-2 text-xs font-medium text-blue-700">
+                  {presence.length} online
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </nav>
 
       <Modal
@@ -259,7 +276,7 @@ export default function Navbar() {
         </form>
       </Modal>
 
-      {canInviteUsers ? <InviteUser isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} /> : null}
+      {hasWorkspace && canInviteUsers ? <InviteUser isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} /> : null}
     </>
   );
 }

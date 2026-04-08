@@ -50,9 +50,8 @@ const findTaskById = (board: BoardType | null, taskId: string | null) => {
 export default function Board() {
   const dispatch = useDispatch<AppDispatch>();
   const { showToast } = useToast();
-  const { tenants, activeTenant, boards, currentBoard, memberships, loading, error, searchQuery } = useSelector(
-    (state: RootState) => state.kanban
-  );
+  const { tenants, activeTenant, boards, currentBoard, memberships, hasFetchedTenants, loading, error, searchQuery } =
+    useSelector((state: RootState) => state.kanban);
 
   useKanbanSocket();
 
@@ -83,10 +82,10 @@ export default function Board() {
   const selectedTask = findTaskById(currentBoard, selectedTaskId);
 
   useEffect(() => {
-    if (!tenants.length && !loading) {
+    if (!hasFetchedTenants && !loading) {
       dispatch(fetchMyTenants());
     }
-  }, [dispatch, loading, tenants.length]);
+  }, [dispatch, hasFetchedTenants, loading]);
 
   useEffect(() => {
     if (activeTenant?.id) {
@@ -382,7 +381,7 @@ export default function Board() {
     }
   };
 
-  if (loading && !tenants.length) {
+  if (!hasFetchedTenants && loading) {
     return (
       <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center">
         <div className="flex items-center gap-3 rounded-3xl border border-blue-100 bg-white px-5 py-4 text-blue-700 shadow-sm">
