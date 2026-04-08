@@ -1,5 +1,5 @@
-const configuredApiUrl = "https://multi-tenant-gbpo.onrender.com/api/v1";
-const fallbackApiUrl = import.meta.env.DEV ? 'https://multi-tenant-gbpo.onrender.com/api/v1' : '/api/v1';
+const configuredApiUrl = "http://localhost:8080/api/v1";
+const fallbackApiUrl = import.meta.env.DEV ? 'http://localhost:8080/api/v1' : '/api/v1';
 
 if (!configuredApiUrl && import.meta.env.PROD) {
   console.error(

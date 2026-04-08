@@ -1,7 +1,7 @@
 // src/components/Column.tsx
 import type { Column as ColumnType } from '../types';
 import TaskCard from './TaskCard';
-import { MoreHorizontal, Plus } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useDroppable } from '@dnd-kit/core';
 import { useDispatch } from 'react-redux';
@@ -14,6 +14,12 @@ interface ColumnProps {
   onTaskClick?: (task: any) => void;
 }
 
+const getApiErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.error ||
+  error?.response?.data?.message ||
+  error?.response?.data?.details ||
+  fallback;
+
 export default function Column({ column, onTaskClick }: ColumnProps) {
   const dispatch = useDispatch<AppDispatch>();
   const { setNodeRef } = useDroppable({
@@ -23,13 +29,53 @@ export default function Column({ column, onTaskClick }: ColumnProps) {
 
   const taskIds = (column.tasks ?? []).map((t) => t.id);
 
+  const handleRenameColumn = async () => {
+    const name = prompt('Rename column', column.name);
+    if (!name || name.trim() === column.name) return;
+
+    try {
+      await apiClient.put(`/columns/${column.id}`, {
+        name: name.trim(),
+        position: column.position,
+      });
+      dispatch(fetchBoards());
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to rename column'));
+    }
+  };
+
+  const handleDeleteColumn = async () => {
+    const confirmed = confirm(`Delete "${column.name}"? All cards in this column will be removed too.`);
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`/columns/${column.id}`);
+      dispatch(fetchBoards());
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to delete column'));
+    }
+  };
+
   return (
     <div className="flex flex-col shrink-0 w-68 bg-[#ebecf0] rounded-xl max-h-full">
       <div className="p-3 pb-2 flex items-center justify-between cursor-pointer group">
         <h3 className="font-semibold text-sm text-gray-700 pl-1">{column.name}</h3>
-        <button className="p-1.5 rounded-md text-gray-500 hover:bg-gray-300 opacity-0 group-hover:opacity-100 transition-opacity">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleRenameColumn}
+            className="p-1.5 rounded-md text-gray-500 hover:bg-gray-300 hover:text-gray-700"
+            title="Rename column"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleDeleteColumn}
+            className="p-1.5 rounded-md text-gray-500 hover:bg-red-100 hover:text-red-600"
+            title="Delete column"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* Drop Zone for Tasks */}

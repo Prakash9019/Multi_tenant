@@ -1,6 +1,7 @@
 // src/components/Board.tsx
 import  { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import type { Task } from '../types';
 import type { RootState, AppDispatch } from '../store/store';
 import { fetchBoards, moveTask, fetchMyTenants, fetchActivityLogs, undoLastAction } from '../store/kanbanThunks';
 import { socketTaskMoved, setActiveTenant } from '../store/kanbanSlice';
@@ -8,16 +9,36 @@ import { useKanbanSocket } from '../hooks/useKanbanSocket';
 import EmptyDashboard from './EmptyDashboard';
 import TenantSelector from './TenantSelector';
 import Column from './Column';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Pencil, Save, Trash2 } from 'lucide-react';
 import { DndContext,type DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import apiClient from '../api/client';
+
+const getApiErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.error ||
+  error?.response?.data?.message ||
+  error?.response?.data?.details ||
+  fallback;
 
 export default function Board() {
   const dispatch = useDispatch<AppDispatch>();
   const { currentBoard, activeTenant, loading, activityLogs, tenants } = useSelector((state: RootState) => state.kanban);
-  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskDraft, setTaskDraft] = useState({ title: '', description: '' });
+  const [taskSaving, setTaskSaving] = useState(false);
+  const [taskDeleting, setTaskDeleting] = useState(false);
 
   useKanbanSocket();
+
+  let selectedTask: Task | null = null;
+  if (currentBoard && selectedTaskId) {
+    for (const column of currentBoard.columns) {
+      const task = column.tasks.find((item) => item.id === selectedTaskId);
+      if (task) {
+        selectedTask = task;
+        break;
+      }
+    }
+  }
 
   useEffect(() => {
     if (!activeTenant) {
@@ -38,9 +59,31 @@ export default function Board() {
     }
   }, [activeTenant, dispatch]);
 
+  useEffect(() => {
+    if (!selectedTaskId) {
+      setTaskDraft({ title: '', description: '' });
+      return;
+    }
+
+    if (!selectedTask) {
+      setSelectedTaskId(null);
+      return;
+    }
+
+    setTaskDraft({
+      title: selectedTask.title,
+      description: selectedTask.description || '',
+    });
+  }, [selectedTaskId, selectedTask]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  const refreshBoardData = () => {
+    dispatch(fetchBoards());
+    dispatch(fetchActivityLogs());
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -88,9 +131,87 @@ export default function Board() {
       newPosition: newPosition,
       version: activeTask.version
     })).unwrap().catch((err: string) => {
-      alert(err || 'Task move failed. Refreshing board.');
+      const message = err || 'Task move failed. Refreshing board.';
+      if (message.toLowerCase().includes('conflict')) {
+        console.warn(message);
+      } else {
+        alert(message);
+      }
       dispatch(fetchBoards());
     });
+  };
+
+  const handleRenameBoard = async () => {
+    if (!currentBoard) return;
+
+    const name = prompt('Rename board', currentBoard.name);
+    if (!name || name.trim() === currentBoard.name) return;
+
+    try {
+      await apiClient.put(`/boards/${currentBoard.id}`, { name: name.trim() });
+      refreshBoardData();
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to rename board'));
+    }
+  };
+
+  const handleDeleteBoard = async () => {
+    if (!currentBoard) return;
+
+    const confirmed = confirm(`Delete board "${currentBoard.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await apiClient.delete(`/boards/${currentBoard.id}`);
+      setSelectedTaskId(null);
+      refreshBoardData();
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to delete board'));
+    }
+  };
+
+  const handleSaveTask = async () => {
+    if (!selectedTask) return;
+
+    const title = taskDraft.title.trim();
+    if (!title) {
+      alert('Task title is required');
+      return;
+    }
+
+    try {
+      setTaskSaving(true);
+      await apiClient.put(`/tasks/${selectedTask.id}`, {
+        title,
+        description: taskDraft.description.trim(),
+        columnId: selectedTask.columnId,
+        position: selectedTask.position,
+        version: selectedTask.version,
+      });
+      refreshBoardData();
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to update task'));
+    } finally {
+      setTaskSaving(false);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (!selectedTask) return;
+
+    const confirmed = confirm(`Delete task "${selectedTask.title}"?`);
+    if (!confirmed) return;
+
+    try {
+      setTaskDeleting(true);
+      await apiClient.delete(`/tasks/${selectedTask.id}`);
+      setSelectedTaskId(null);
+      refreshBoardData();
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to delete task'));
+    } finally {
+      setTaskDeleting(false);
+    }
   };
 
   if (loading) return <div className="flex-1 flex justify-center mt-20"><Loader2 className="animate-spin" /></div>;
@@ -141,7 +262,23 @@ export default function Board() {
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-800">{currentBoard.name}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold text-gray-800">{currentBoard.name}</h1>
+            <button
+              onClick={handleRenameBoard}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-white rounded-md transition-colors"
+              title="Rename board"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleDeleteBoard}
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+              title="Delete board"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
           <div className="flex items-center gap-4">
             <button
               onClick={async () => {
@@ -164,7 +301,7 @@ export default function Board() {
 
         <div className="flex-1 overflow-x-auto px-6 pb-6 pt-2 flex space-x-4">
           {currentBoard.columns.map((column) => (
-            <Column key={column.id} column={column} onTaskClick={setSelectedTask} />
+            <Column key={column.id} column={column} onTaskClick={(task) => setSelectedTaskId(task.id)} />
           ))}
           <button
             onClick={async () => {
@@ -194,11 +331,54 @@ export default function Board() {
         <div className="fixed right-0 top-14 bottom-0 w-80 bg-white border-l shadow-lg p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Task Details</h3>
-            <button onClick={() => setSelectedTask(null)} className="text-xs text-gray-500">Close</button>
+            <button onClick={() => setSelectedTaskId(null)} className="text-xs text-gray-500">Close</button>
           </div>
-          <p className="font-bold">{selectedTask.title}</p>
-          <p className="text-sm text-gray-600 mt-2">{selectedTask.description || 'No description'}</p>
-          <p className="text-xs text-gray-400 mt-3">Position: {selectedTask.position}, Version: {selectedTask.version}</p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Title</label>
+              <input
+                value={taskDraft.title}
+                onChange={(e) => setTaskDraft((current) => ({ ...current, title: e.target.value }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Task title"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Description</label>
+              <textarea
+                value={taskDraft.description}
+                onChange={(e) => setTaskDraft((current) => ({ ...current, description: e.target.value }))}
+                rows={6}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                placeholder="Add details for this task"
+              />
+            </div>
+
+            <div className="text-xs text-gray-400">
+              Position: {selectedTask.position}, Version: {selectedTask.version}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSaveTask}
+                disabled={taskSaving || taskDeleting}
+                className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {taskSaving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={handleDeleteTask}
+                disabled={taskSaving || taskDeleting}
+                className="inline-flex items-center justify-center gap-2 bg-red-50 text-red-600 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-100 disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                {taskDeleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </DndContext>

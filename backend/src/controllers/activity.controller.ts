@@ -2,7 +2,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { io } from '../sockets/socketManager';
-import { getErrorMessage, logError } from '../utils/runtime';
+import { getErrorMessage, isPrismaMissingColumnError, logError } from '../utils/runtime';
 
 interface TaskSnapshot {
   title: string;
@@ -33,7 +33,22 @@ export const getActivityLogs = async (req: Request, res: Response) => {
     const logs = await prisma.activityLog.findMany({
       where: { tenantId },
       orderBy: { createdAt: 'desc' },
-      include: { user: true },
+      select: {
+        id: true,
+        action: true,
+        entityType: true,
+        entityId: true,
+        userId: true,
+        tenantId: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
 
     res.status(200).json(logs);
@@ -218,6 +233,12 @@ export const undoLastAction = async (req: Request, res: Response) => {
       result: undoResult,
     });
   } catch (error) {
+    if (isPrismaMissingColumnError(error, 'data')) {
+      return res.status(503).json({
+        error: 'Undo is temporarily unavailable until the database migration for activity history is applied',
+      });
+    }
+
     logError('activity.undoLastAction', error);
     res.status(500).json({ error: 'Failed to undo action', details: getErrorMessage(error) });
   }

@@ -31,7 +31,8 @@ export const useKanbanSocket = () => {
       socketRef.current = io(SOCKET_SERVER_URL, {
         auth: { token },
         query: { tenantId: activeTenant.id },
-        transports: ['websocket', 'polling'], // Fallback to polling if websocket fails
+        transports: ['polling', 'websocket'],
+        upgrade: true,
         timeout: 5000,
         reconnection: true,
         reconnectionAttempts: maxReconnectAttempts,
@@ -95,6 +96,7 @@ export const useKanbanSocket = () => {
       });
 
       socket.on('disconnect', (reason) => {
+        dispatch(fetchBoards());
         console.log('🔴 Disconnected from real-time sync:', reason);
         if (reason === 'io server disconnect') {
           // Server disconnected, try to reconnect

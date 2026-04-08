@@ -2,16 +2,26 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import type { RootState } from '../store/store';
+import type { RootState, AppDispatch } from '../store/store';
 import { setActiveTenant, clearKanbanState } from '../store/kanbanSlice';
-import { LayoutDashboard, ChevronDown, Bell, Search, LogOut, UserPlus } from 'lucide-react';
+import { fetchMyTenants } from '../store/kanbanThunks';
+import { LayoutDashboard, ChevronDown, Bell, Search, LogOut, UserPlus, Plus } from 'lucide-react';
 import InviteUser from './InviteUser';
 import { User } from "lucide-react";
+import apiClient from '../api/client';
+
 export default function Navbar() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
   const { activeOrganization, activeTenant, tenants, presence } = useSelector((state: RootState) => state.kanban);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [creatingTenant, setCreatingTenant] = useState(false);
+
+  const getApiErrorMessage = (error: any, fallback: string) =>
+    error?.response?.data?.error ||
+    error?.response?.data?.message ||
+    error?.response?.data?.details ||
+    fallback;
 
   const onTenantSwitch = () => {
     if (!tenants || tenants.length === 0) {
@@ -39,8 +49,35 @@ export default function Navbar() {
 
   const handleLogout = () => {
     dispatch(clearKanbanState());
+    localStorage.removeItem('jwt_token');
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const handleCreateTenant = async () => {
+    if (!activeOrganization) {
+      alert('Select an organization first.');
+      return;
+    }
+
+    const tenantName = prompt('Enter new branch name');
+    if (!tenantName?.trim()) return;
+
+    try {
+      setCreatingTenant(true);
+      const response = await apiClient.post('/organizations/tenants', {
+        organizationId: activeOrganization.id,
+        tenantName: tenantName.trim(),
+      });
+      await dispatch(fetchMyTenants()).unwrap();
+      if (response.data?.tenant) {
+        dispatch(setActiveTenant(response.data.tenant));
+      }
+    } catch (error) {
+      alert(getApiErrorMessage(error, 'Failed to create branch'));
+    } finally {
+      setCreatingTenant(false);
+    }
   };
 
   return (
@@ -85,6 +122,14 @@ export default function Navbar() {
           <Bell className="w-5 h-5" />
         </button>
         <div className="text-xs text-gray-500 mr-3">Presence: {presence.length} online</div>
+        <button
+          onClick={handleCreateTenant}
+          disabled={creatingTenant || !activeOrganization}
+          className="text-gray-500 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Create Branch"
+        >
+          <Plus className="w-5 h-5" />
+        </button>
         {/* Invite User Button */}
         <button
           onClick={() => setShowInviteModal(true)}

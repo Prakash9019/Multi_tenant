@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,7 +7,6 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-        
 
 model Organization {
   id          String       @id @default(uuid())
@@ -113,8 +111,8 @@ model ActivityLog {
   entityId   String
   userId     String
   tenantId   String
-  data       Json?    // Store previous state or data needed for undo
   createdAt  DateTime @default(now())
+  data       Json?
   tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
